@@ -1,0 +1,142 @@
+[build-system]
+requires = ["setuptools>=70.2.0", "wheel>=0.44.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sbcdp"
+version = "1.0.0"
+description = "SBCDP - Pure CDP (Chrome DevTools Protocol) Automation Framework"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "SBCDP Team", email = "995018884@qq.com"}
+]
+maintainers = [
+    {name = "SBCDP Team", email = "995018884@qq.com"}
+]
+keywords = [
+    "automation",
+    "cdp",
+    "chrome",
+    "devtools",
+    "browser",
+    "scraping",
+    "testing",
+    "async",
+    "sync"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Testing :: Acceptance",
+    "Topic :: Software Development :: Testing :: Traffic Generation",
+    "Topic :: Utilities",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "requests",
+    "mycdp>=1.0.0",
+    "cssselect>=1.3.0",
+    "fasteners>=0.19",
+    "colorama>=0.4.6",
+    "websockets>=11.0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/ConlinH/sbcdp"
+"Source" = "https://github.com/ConlinH/sbcdp"
+"Repository" = "https://github.com/ConlinH/sbcdp"
+"Bug Tracker" = "https://github.com/ConlinH/sbcdp/issues"
+"Documentation" = "https://github.com/ConlinH/sbcdp#readme"
+
+[tool.setuptools]
+packages = [
+    "sbcdp",
+    "sbcdp.config",
+    "sbcdp.core",
+    "sbcdp.driver",
+    "sbcdp.fixtures",
+]
+
+[tool.setuptools.package-data]
+sbcdp = ["*.txt", "*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--disable-warnings",
+]
+asyncio_mode = "auto"
+markers = [
+    "asyncio: mark test as async",
+    "slow: mark test as slow running",
+    "integration: mark test as integration test",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
