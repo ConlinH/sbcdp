@@ -245,7 +245,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - 项目主页 | Project Homepage: https://github.com/ConlinH/sbcdp
 - 问题反馈 | Issue Tracker: https://github.com/ConlinH/sbcdp/issues
-- 邮箱 | Email: sbcdp@example.com
+- 邮箱 | Email: 995018884@qq.com
 
 ---
 
