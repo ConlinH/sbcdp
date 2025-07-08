@@ -366,7 +366,6 @@ async def start(
             extension_dir=extension_dir,
             **kwargs,
         )
-    driver = None
     try:
         driver = await Browser.create(config)
     except Exception:

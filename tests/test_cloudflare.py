@@ -23,7 +23,7 @@ class TestCloudflare:
             await chrome.get(url)
             await chrome.sleep(5)
             with suppress(Exception):
-                await chrome.mouse_click('input[type=checkbox]')
+                await chrome.mouse_click('input[type=checkbox]', timeout=1)
             assert 'cf_clearance' in {c.name: c.value for c in await chrome.get_all_cookies()}
 
 

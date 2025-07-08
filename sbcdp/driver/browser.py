@@ -52,7 +52,7 @@ def deconstruct_browser():
                     break
                 time.sleep(0.15)
                 continue
-        logging.debug("Temp profile %s was removed." % _.config.user_data_dir)
+        logger.debug("Temp profile %s was removed." % _.config.user_data_dir)
 
 
 class Browser:
