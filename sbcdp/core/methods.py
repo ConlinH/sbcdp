@@ -21,12 +21,6 @@ from ..fixtures import constants
 from ..driver import cdp_util
 
 
-async def call_helper(fn, *args, **kwargs):
-    if asyncio.iscoroutinefunction(fn):
-        return await fn(*args, **kwargs)
-    return fn(*args, **kwargs)
-
-
 class AsyncCDPMethods:
     """异步CDP方法类"""
 
@@ -458,16 +452,16 @@ class AsyncCDPMethods:
         return await element.mouse_move_async()
 
     async def __press_keys(self, element, text):
-        element.scroll_into_view()
+        await element.scroll_into_view()
         submit = False
         if text.endswith("\n") or text.endswith("\r"):
             submit = True
             text = text[:-1]
         for key in text:
-            element.send_keys(key)
+            await element.send_keys(key)
             await asyncio.sleep(0.044)
         if submit:
-            element.send_keys("\r\n")
+            await element.send_keys("\r\n")
             await asyncio.sleep(0.044)
         await self.__slow_mode_pause_if_set()
         return await self.page.sleep(0.025)
@@ -521,8 +515,8 @@ class AsyncCDPMethods:
 
     async def __type(self, element, text):
         with suppress(Exception):
-            element.clear_input()
-        element.send_keys(text)
+            await element.clear_input()
+        await element.send_keys(text)
 
     async def __get_position(self, element):
         return await element.get_position_async()
@@ -1088,19 +1082,13 @@ class AsyncCDPMethods:
         if not timeout:
             timeout = settings.SMALL_TIMEOUT
         element_rect = await self.get_element_rect(selector, timeout=timeout)
-        coordinates = {}
-        coordinates["width"] = element_rect["width"]
-        coordinates["height"] = element_rect["height"]
-        return coordinates
+        return {"width": element_rect["width"], "height": element_rect["height"]}
 
     async def get_element_position(self, selector, timeout=None):
         if not timeout:
             timeout = settings.SMALL_TIMEOUT
         element_rect = await self.get_element_rect(selector, timeout=timeout)
-        coordinates = {}
-        coordinates["x"] = element_rect["x"]
-        coordinates["y"] = element_rect["y"]
-        return coordinates
+        return {"width": element_rect["width"], "height": element_rect["height"]}
 
     async def get_gui_element_rect(self, selector, timeout=None):
         """(Coordinates are relative to the screen. Not the window.)"""
@@ -1118,7 +1106,7 @@ class AsyncCDPMethods:
         y = y - y_scroll_offset
         x = x + window_rect["scrollX"]
         y = y + window_rect["scrollY"]
-        return ({"height": e_height, "width": e_width, "x": x, "y": y})
+        return {"height": e_height, "width": e_width, "x": x, "y": y}
 
     async def get_gui_element_center(self, selector, timeout=None):
         """(Coordinates are relative to the screen. Not the window.)"""
@@ -1129,7 +1117,7 @@ class AsyncCDPMethods:
         e_height = element_rect["height"]
         e_x = element_rect["x"]
         e_y = element_rect["y"]
-        return ((e_x + e_width / 2.0) + 0.5, (e_y + e_height / 2.0) + 0.5)
+        return (e_x + e_width / 2.0) + 0.5, (e_y + e_height / 2.0) + 0.5
 
     async def get_document(self):
         return await self.page.get_document()
@@ -1209,26 +1197,21 @@ class AsyncCDPMethods:
         with suppress(Exception):
             await self.page.evaluate(js_code)
 
-    async def __make_sure_pyautogui_lock_is_writable(self):
+    def __make_sure_pyautogui_lock_is_writable(self):
         with suppress(Exception):
             shared_utils.make_writable(constants.MultiBrowser.PYAUTOGUILOCK)
 
-    async def __verify_pyautogui_has_a_headed_browser(self):
+    def __verify_pyautogui_has_a_headed_browser(self):
         """PyAutoGUI requires a headed browser so that it can
         focus on the correct element when performing actions."""
-        driver = self.driver
-        if hasattr(driver, "cdp_base"):
-            driver = driver.cdp_base
-        if driver.config.headless:
+        if self.driver.config.headless:
             raise Exception(
                 "PyAutoGUI can't be used in headless mode!"
             )
 
-    async def __install_pyautogui_if_missing(self):
-        await self.__verify_pyautogui_has_a_headed_browser()
+    def __install_pyautogui_if_missing(self):
+        self.__verify_pyautogui_has_a_headed_browser()
         driver = self.driver
-        if hasattr(driver, "cdp_base"):
-            driver = driver.cdp_base
         pip_find_lock = fasteners.InterProcessLock(
             constants.PipInstall.FINDLOCK
         )
@@ -1295,7 +1278,7 @@ class AsyncCDPMethods:
                                 )
                             xvfb_display.start()
 
-    async def __get_configured_pyautogui(self, pyautogui_copy):
+    def __get_configured_pyautogui(self, pyautogui_copy):
         if (
             shared_utils.is_linux()
             and hasattr(pyautogui_copy, "_pyautogui_x11")
@@ -1313,37 +1296,33 @@ class AsyncCDPMethods:
                 pass
             else:
                 import Xlib.display
-                pyautogui_copy._pyautogui_x11._display = (
-                    Xlib.display.Display(os.environ['DISPLAY'])
-                )
-                sb_config._pyautogui_x11_display = (
-                    pyautogui_copy._pyautogui_x11._display
-                )
+                pyautogui_copy._pyautogui_x11._display = Xlib.display.Display(os.environ['DISPLAY'])
+                sb_config._pyautogui_x11_display = pyautogui_copy._pyautogui_x11._display
         return pyautogui_copy
 
     async def gui_press_key(self, key):
-        await self.__install_pyautogui_if_missing()
+        self.__install_pyautogui_if_missing()
         import pyautogui
-        pyautogui = await self.__get_configured_pyautogui(pyautogui)
+        pyautogui = self.__get_configured_pyautogui(pyautogui)
         gui_lock = fasteners.InterProcessLock(
             constants.MultiBrowser.PYAUTOGUILOCK
         )
         with gui_lock:
-            await self.__make_sure_pyautogui_lock_is_writable()
+            self.__make_sure_pyautogui_lock_is_writable()
             pyautogui.press(key)
             await asyncio.sleep(0.044)
         await self.__slow_mode_pause_if_set()
         await self.page.sleep(0.025)
 
     async def gui_press_keys(self, keys):
-        await self.__install_pyautogui_if_missing()
+        self.__install_pyautogui_if_missing()
         import pyautogui
-        pyautogui = await self.__get_configured_pyautogui(pyautogui)
+        pyautogui = self.__get_configured_pyautogui(pyautogui)
         gui_lock = fasteners.InterProcessLock(
             constants.MultiBrowser.PYAUTOGUILOCK
         )
         with gui_lock:
-            await self.__make_sure_pyautogui_lock_is_writable()
+            self.__make_sure_pyautogui_lock_is_writable()
             for key in keys:
                 pyautogui.press(key)
                 await asyncio.sleep(0.044)
@@ -1351,22 +1330,22 @@ class AsyncCDPMethods:
         await self.page.sleep(0.025)
 
     async def gui_write(self, text):
-        await self.__install_pyautogui_if_missing()
+        self.__install_pyautogui_if_missing()
         import pyautogui
-        pyautogui = await self.__get_configured_pyautogui(pyautogui)
+        pyautogui = self.__get_configured_pyautogui(pyautogui)
         gui_lock = fasteners.InterProcessLock(
             constants.MultiBrowser.PYAUTOGUILOCK
         )
         with gui_lock:
-            await self.__make_sure_pyautogui_lock_is_writable()
+            self.__make_sure_pyautogui_lock_is_writable()
             pyautogui.write(text)
         await self.__slow_mode_pause_if_set()
         await self.page.sleep(0.025)
 
     async def __gui_click_x_y(self, x, y, timeframe=0.25, uc_lock=False):
-        await self.__install_pyautogui_if_missing()
+        self.__install_pyautogui_if_missing()
         import pyautogui
-        pyautogui = await self.__get_configured_pyautogui(pyautogui)
+        pyautogui = self.__get_configured_pyautogui(pyautogui)
         screen_width, screen_height = pyautogui.size()
         if x < 0 or y < 0 or x > screen_width or y > screen_height:
             raise Exception(
@@ -1379,7 +1358,7 @@ class AsyncCDPMethods:
                 constants.MultiBrowser.PYAUTOGUILOCK
             )
             with gui_lock:  # Prevent issues with multiple processes
-                await self.__make_sure_pyautogui_lock_is_writable()
+                self.__make_sure_pyautogui_lock_is_writable()
                 pyautogui.moveTo(x, y, timeframe, pyautogui.easeOutQuad)
                 if timeframe >= 0.25:
                     await asyncio.sleep(0.056)  # Wait if moving at human-speed
@@ -1400,10 +1379,10 @@ class AsyncCDPMethods:
             constants.MultiBrowser.PYAUTOGUILOCK
         )
         with gui_lock:  # Prevent issues with multiple processes
-            await self.__make_sure_pyautogui_lock_is_writable()
-            await self.__install_pyautogui_if_missing()
+            self.__make_sure_pyautogui_lock_is_writable()
+            self.__install_pyautogui_if_missing()
             import pyautogui
-            pyautogui = await self.__get_configured_pyautogui(pyautogui)
+            pyautogui = self.__get_configured_pyautogui(pyautogui)
             width_ratio = 1.0
             if shared_utils.is_windows():
                 window_rect = await self.get_window_rect()
@@ -1414,7 +1393,7 @@ class AsyncCDPMethods:
                 scr_width = pyautogui.size().width
                 await self.maximize()
                 await self.__add_light_pause()
-                win_width = self.get_window_size()["width"]
+                win_width = (await self.get_window_size())["width"]
                 width_ratio = round(float(scr_width) / float(win_width), 2)
                 width_ratio += 0.01
                 if width_ratio < 0.45 or width_ratio > 2.55:
@@ -1438,9 +1417,9 @@ class AsyncCDPMethods:
         await self.page.wait()
 
     async def __gui_drag_drop(self, x1, y1, x2, y2, timeframe=0.25, uc_lock=False):
-        await self.__install_pyautogui_if_missing()
+        self.__install_pyautogui_if_missing()
         import pyautogui
-        pyautogui = await self.__get_configured_pyautogui(pyautogui)
+        pyautogui = self.__get_configured_pyautogui(pyautogui)
         screen_width, screen_height = pyautogui.size()
         if x1 < 0 or y1 < 0 or x1 > screen_width or y1 > screen_height:
             raise Exception(
@@ -1479,9 +1458,9 @@ class AsyncCDPMethods:
             constants.MultiBrowser.PYAUTOGUILOCK
         )
         with gui_lock:  # Prevent issues with multiple processes
-            await self.__install_pyautogui_if_missing()
+            self.__install_pyautogui_if_missing()
             import pyautogui
-            pyautogui = await self.__get_configured_pyautogui(pyautogui)
+            pyautogui = self.__get_configured_pyautogui(pyautogui)
             width_ratio = 1.0
             if shared_utils.is_windows():
                 window_rect = await self.get_window_rect()
@@ -1492,7 +1471,7 @@ class AsyncCDPMethods:
                 scr_width = pyautogui.size().width
                 await self.maximize()
                 await self.__add_light_pause()
-                win_width = self.get_window_size()["width"]
+                win_width = (await self.get_window_size())["width"]
                 width_ratio = round(float(scr_width) / float(win_width), 2)
                 width_ratio += 0.01
                 if width_ratio < 0.45 or width_ratio > 2.55:
@@ -1533,9 +1512,9 @@ class AsyncCDPMethods:
         await self.gui_drag_drop_points(x, y, x, y, timeframe=timeframe)
 
     async def __gui_hover_x_y(self, x, y, timeframe=0.25, uc_lock=False):
-        await self.__install_pyautogui_if_missing()
+        self.__install_pyautogui_if_missing()
         import pyautogui
-        pyautogui = await self.__get_configured_pyautogui(pyautogui)
+        pyautogui = self.__get_configured_pyautogui(pyautogui)
         screen_width, screen_height = pyautogui.size()
         if x < 0 or y < 0 or x > screen_width or y > screen_height:
             raise Exception(
@@ -1564,9 +1543,9 @@ class AsyncCDPMethods:
             constants.MultiBrowser.PYAUTOGUILOCK
         )
         with gui_lock:  # Prevent issues with multiple processes
-            await self.__install_pyautogui_if_missing()
+            self.__install_pyautogui_if_missing()
             import pyautogui
-            pyautogui = await self.__get_configured_pyautogui(pyautogui)
+            pyautogui = self.__get_configured_pyautogui(pyautogui)
             width_ratio = 1.0
             if (
                 shared_utils.is_windows()
@@ -1589,7 +1568,7 @@ class AsyncCDPMethods:
                     scr_width = pyautogui.size().width
                     await self.maximize()
                     await self.__add_light_pause()
-                    win_width = self.get_window_size()["width"]
+                    win_width = (await self.get_window_size())["width"]
                     width_ratio = round(float(scr_width) / float(win_width), 2)
                     width_ratio += 0.01
                     if width_ratio < 0.45 or width_ratio > 2.55:
@@ -1630,7 +1609,7 @@ class AsyncCDPMethods:
             constants.MultiBrowser.PYAUTOGUILOCK
         )
         with gui_lock:
-            await self.__make_sure_pyautogui_lock_is_writable()
+            self.__make_sure_pyautogui_lock_is_writable()
             await self.bring_active_window_to_front()
             await self.gui_hover_element(hover_selector)
             await asyncio.sleep(0.15)
@@ -1689,7 +1668,7 @@ class AsyncCDPMethods:
                 return False
             try:
                 position = await element.get_position()
-                return (position.width != 0 or position.height != 0)
+                return position.width != 0 or position.height != 0
             except Exception:
                 return False
         else:
@@ -1793,9 +1772,9 @@ class AsyncCDPMethods:
         start_ms = time.time() * 1000.0
         stop_ms = start_ms + (timeout * 1000.0)
         for i in range(int(timeout * 10)):
-            if not self.is_element_present(selector):
+            if not await self.is_element_present(selector):
                 return True
-            elif not self.is_element_visible(selector):
+            elif not await self.is_element_visible(selector):
                 return True
             now_ms = time.time() * 1000.0
             if now_ms >= stop_ms:
@@ -1816,7 +1795,7 @@ class AsyncCDPMethods:
         start_ms = time.time() * 1000.0
         stop_ms = start_ms + (timeout * 1000.0)
         for i in range(int(timeout * 10)):
-            if not self.is_element_present(selector):
+            if not await self.is_element_present(selector):
                 return True
             now_ms = time.time() * 1000.0
             if now_ms >= stop_ms:
