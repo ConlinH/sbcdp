@@ -1,11 +1,11 @@
 from __future__ import annotations
 import asyncio
-import logging
 import pathlib
 import secrets
 import typing
 from contextlib import suppress
 
+from loguru import logger
 import mycdp as cdp
 import mycdp.input_
 import mycdp.dom
@@ -18,7 +18,6 @@ from ._contradict import ContraDict
 from .config import PathLike
 
 
-logger = logging.getLogger(__name__)
 if typing.TYPE_CHECKING:
     from .tab import Tab
 

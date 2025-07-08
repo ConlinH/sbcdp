@@ -4,7 +4,6 @@ import asyncio
 import atexit
 import http.cookiejar
 import json
-import logging
 import os
 import pathlib
 import pickle
@@ -15,16 +14,17 @@ import urllib.parse
 import urllib.request
 import warnings
 from collections import defaultdict
-from .. import config as sb_config
 from typing import List, Optional, Set, Tuple, Union
+
 import mycdp as cdp
+from loguru import logger
+
+from .. import config as sb_config
 from . import cdp_util as util
 from . import tab
 from ._contradict import ContraDict
 from .config import PathLike, Config, is_posix
 from .connection import Connection
-
-logger = logging.getLogger(__name__)
 
 
 def get_registered_instances():

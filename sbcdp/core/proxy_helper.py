@@ -3,6 +3,7 @@ import re
 import warnings
 import zipfile
 from contextlib import suppress
+
 from ..config import proxy_list
 from ..config import settings
 from ..fixtures import constants

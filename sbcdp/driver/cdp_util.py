@@ -1,14 +1,17 @@
 """CDP-Driver is based on NoDriver"""
 from __future__ import annotations
 import asyncio
-import fasteners
-import logging
 import os
 import sys
 import time
 import types
 import typing
 from contextlib import suppress
+from typing import Optional, List, Union, Callable
+
+import fasteners
+import mycdp as cdp
+
 from .. import config as sb_config
 from ..config import settings
 from ..core import detect_b_ver
@@ -16,15 +19,12 @@ from ..core import download_helper
 from ..core import proxy_helper
 from ..fixtures import constants
 from ..fixtures import shared_utils
-from typing import Optional, List, Union, Callable
 from .element import Element
 from .browser import Browser
 from .browser import PathLike
 from .config import Config
 from .tab import Tab
-import mycdp as cdp
 
-logger = logging.getLogger(__name__)
 IS_LINUX = shared_utils.is_linux()
 DOWNLOADS_FOLDER = download_helper.get_downloads_folder()
 PROXY_DIR_LOCK = proxy_helper.PROXY_DIR_LOCK

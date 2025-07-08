@@ -8,9 +8,9 @@ import time
 import sys
 import re
 import os
+from contextlib import suppress
 
 import fasteners
-from contextlib import suppress
 
 from .. import config as sb_config
 from ..config import settings

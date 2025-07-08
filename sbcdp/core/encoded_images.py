@@ -10,21 +10,26 @@ DASH_PIE_PNG_3 = ""
 REPORT_FAVICON = ""
 SIDE_BY_SIDE_PNG = ""
 
+
 def get_dash_pie_png1():
     """返回空字符串占位符"""
     return ""
+
 
 def get_dash_pie_png2():
     """返回空字符串占位符"""
     return ""
 
+
 def get_dash_pie_png3():
     """返回空字符串占位符"""
     return ""
 
+
 def get_report_favicon():
     """返回空字符串占位符"""
     return ""
+
 
 def get_side_by_side_png():
     """返回空字符串占位符"""

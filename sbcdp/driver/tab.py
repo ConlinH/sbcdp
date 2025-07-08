@@ -2,20 +2,19 @@ from __future__ import annotations
 import asyncio
 import base64
 import datetime
-import logging
 import pathlib
 import urllib.parse
 import warnings
-from .. import config as sb_config
 from typing import Dict, List, Union, Optional, Tuple
+
+import mycdp as cdp
+
+from .. import config as sb_config
 from . import browser as cdp_browser
 from . import element
 from . import cdp_util as util
 from .config import PathLike
 from .connection import Connection, ProtocolException
-import mycdp as cdp
-
-logger = logging.getLogger(__name__)
 
 
 class Tab(Connection):

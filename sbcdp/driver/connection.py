@@ -4,7 +4,6 @@ import collections
 import inspect
 import itertools
 import json
-import logging
 import sys
 import types
 from asyncio import iscoroutine, iscoroutinefunction
@@ -18,9 +17,9 @@ from typing import (
     TypeVar,
 )
 
+from loguru import logger
 import websockets
 from websockets.protocol import State
-
 import mycdp as cdp
 import mycdp.network
 import mycdp.page
@@ -37,7 +36,6 @@ GLOBAL_DELAY = 0.005
 MAX_SIZE: int = 2**28
 PING_TIMEOUT: int = 1800  # 30 minutes
 TargetType = Union[cdp.target.TargetInfo, cdp.target.TargetID]
-logger = logging.getLogger("uc.connection")
 
 
 class ProtocolException(Exception):

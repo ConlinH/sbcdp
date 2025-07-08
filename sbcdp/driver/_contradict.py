@@ -1,8 +1,6 @@
 import warnings as _warnings
 from collections.abc import Mapping as _Mapping, Sequence as _Sequence
-import logging
 
-__logger__ = logging.getLogger(__name__)
 __all__ = ["cdict", "ContraDict"]
 
 

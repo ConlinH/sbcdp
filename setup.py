@@ -30,6 +30,7 @@ def get_requirements():
             return [line.strip() for line in f if line.strip() and not line.startswith('#')]
     return [
         "requests",
+        "loguru",
         "mycdp>=1.0.0",
         "cssselect>=1.3.0",
         "fasteners>=0.19",

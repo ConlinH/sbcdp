@@ -1,12 +1,14 @@
-import logging
 import os
 import pathlib
 import secrets
 import sys
 import tempfile
 import zipfile
-from ..config import settings
 from typing import Union, List, Optional
+
+from loguru import logger
+
+from ..config import settings
 
 __all__ = [
     "Config",
@@ -17,7 +19,6 @@ __all__ = [
     "PathLike",
 ]
 
-logger = logging.getLogger(__name__)
 is_posix = sys.platform.startswith(("darwin", "cygwin", "linux", "linux2"))
 
 PathLike = Union[str, pathlib.Path]

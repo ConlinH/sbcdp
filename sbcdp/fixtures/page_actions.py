@@ -4,18 +4,19 @@ Contains only essential CDP-compatible methods.
 """
 
 import time
-from contextlib import suppress
-from ..config import settings
-from . import page_utils
+
 from . import shared_utils
+from ..config import settings
 
 
 # Define exception classes locally for CDP-Base
 class ElementNotInteractableException(Exception):
     pass
 
+
 class NoSuchElementException(Exception):
     pass
+
 
 class StaleElementReferenceException(Exception):
     pass

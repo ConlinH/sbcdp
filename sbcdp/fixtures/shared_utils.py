@@ -1,11 +1,13 @@
 """Shared utility methods"""
-import colorama
 import os
 import pathlib
 import platform
 import sys
 import time
 from contextlib import suppress
+
+import colorama
+
 from .. import config as sb_config
 from . import constants
 
@@ -155,61 +157,10 @@ def make_executable(file_path):
 
 def format_exc(exception, message):
     """Formats an exception message to make the output cleaner."""
-    from selenium.common.exceptions import ElementNotVisibleException
-    from selenium.common.exceptions import NoAlertPresentException
-    from selenium.common.exceptions import NoSuchAttributeException
-    from selenium.common.exceptions import NoSuchElementException
-    from selenium.common.exceptions import NoSuchFrameException
-    from selenium.common.exceptions import NoSuchWindowException
-    from seleniumbase.common.exceptions import LinkTextNotFoundException
-    from seleniumbase.common.exceptions import NoSuchFileException
-    from seleniumbase.common.exceptions import NoSuchOptionException
-    from seleniumbase.common.exceptions import TextNotVisibleException
-    from seleniumbase.common import exceptions
 
     if exception is Exception:
         exc = Exception
         return exc, message
-    elif exception is ElementNotVisibleException:
-        exc = exceptions.ElementNotVisibleException
-    elif exception == "ElementNotVisibleException":
-        exc = exceptions.ElementNotVisibleException
-    elif exception is LinkTextNotFoundException:
-        exc = exceptions.LinkTextNotFoundException
-    elif exception == "LinkTextNotFoundException":
-        exc = exceptions.LinkTextNotFoundException
-    elif exception is NoSuchElementException:
-        exc = exceptions.NoSuchElementException
-    elif exception == "NoSuchElementException":
-        exc = exceptions.NoSuchElementException
-    elif exception is TextNotVisibleException:
-        exc = exceptions.TextNotVisibleException
-    elif exception == "TextNotVisibleException":
-        exc = exceptions.TextNotVisibleException
-    elif exception is NoAlertPresentException:
-        exc = exceptions.NoAlertPresentException
-    elif exception == "NoAlertPresentException":
-        exc = exceptions.NoAlertPresentException
-    elif exception is NoSuchAttributeException:
-        exc = exceptions.NoSuchAttributeException
-    elif exception == "NoSuchAttributeException":
-        exc = exceptions.NoSuchAttributeException
-    elif exception is NoSuchFrameException:
-        exc = exceptions.NoSuchFrameException
-    elif exception == "NoSuchFrameException":
-        exc = exceptions.NoSuchFrameException
-    elif exception is NoSuchWindowException:
-        exc = exceptions.NoSuchWindowException
-    elif exception == "NoSuchWindowException":
-        exc = exceptions.NoSuchWindowException
-    elif exception is NoSuchFileException:
-        exc = exceptions.NoSuchFileException
-    elif exception == "NoSuchFileException":
-        exc = exceptions.NoSuchFileException
-    elif exception is NoSuchOptionException:
-        exc = exceptions.NoSuchOptionException
-    elif exception == "NoSuchOptionException":
-        exc = exceptions.NoSuchOptionException
     elif isinstance(exception, str):
         exc = Exception
         message = "%s: %s" % (exception, message)
@@ -217,12 +168,12 @@ def format_exc(exception, message):
     else:
         exc = Exception
         return exc, message
-    message = _format_message(message)
-    try:
-        exc.message = message
-    except Exception:
-        pass
-    return exc, message
+    # message = _format_message(message)
+    # try:
+    #     exc.message = message
+    # except Exception:
+    #     pass
+    # return exc, message
 
 
 def _format_message(message):
@@ -231,9 +182,9 @@ def _format_message(message):
 
 
 def __time_limit_exceeded(message):
-    from seleniumbase.common.exceptions import TimeLimitExceededException
+    # from seleniumbase.common.exceptions import TimeLimitExceededException
 
-    raise TimeLimitExceededException(message)
+    raise Exception(message)
 
 
 def check_if_time_limit_exceeded():

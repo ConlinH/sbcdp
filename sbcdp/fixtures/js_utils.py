@@ -4,7 +4,7 @@ Contains only essential JavaScript execution methods.
 """
 
 import time
-from contextlib import suppress
+
 from ..config import settings
 
 

@@ -1,5 +1,5 @@
 """
-CDP-Base Settings - Simplified configuration for pure CDP automation.
+Settings - Simplified configuration for pure CDP automation.
 """
 
 # #####>>>>>----- CORE TIMEOUT SETTINGS -----<<<<<#####

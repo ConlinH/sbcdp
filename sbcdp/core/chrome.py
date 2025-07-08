@@ -4,6 +4,7 @@ SBCDP 同步Chrome类
 """
 
 import asyncio
+
 from ..driver import cdp_util
 from .methods import SyncCDPMethods, AsyncCDPMethods
 
