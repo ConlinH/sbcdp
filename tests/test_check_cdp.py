@@ -7,11 +7,11 @@ from sbcdp import AsyncChrome as Chrome
 
 
 class TestCheckCDP:
-    """异步Chrome测试类"""
+    """测试特性"""
 
     @pytest.mark.asyncio
     async def test_cdp(self):
-        """测试基本导航功能"""
+        """测试cdp检查"""
         async with Chrome() as chrome:
             test_html = r"""
             <!DOCTYPE html>
@@ -88,7 +88,7 @@ class TestCheckCDP:
             assert await chrome.get_text('#result-table') == '【未打开】 时间间隔->0'
 
     async def test_event(self):
-        """测试基本导航功能"""
+        """测试事件属性"""
         async with Chrome() as chrome:
             test_html = r"""
             <!DOCTYPE html>

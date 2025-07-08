@@ -9,10 +9,10 @@ description = "SBCDP - Pure CDP (Chrome DevTools Protocol) Automation Framework"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "SBCDP Team", email = "995018884@qq.com"}
+    {name = "conlin", email = "995018884@qq.com"}
 ]
 maintainers = [
-    {name = "SBCDP Team", email = "995018884@qq.com"}
+    {name = "conlin", email = "995018884@qq.com"}
 ]
 keywords = [
     "automation",

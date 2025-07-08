@@ -1,5 +1,5 @@
 """
-测试异步Chrome接口
+测试Cloudflare
 """
 
 from contextlib import suppress
@@ -8,11 +8,11 @@ import pytest
 from sbcdp import AsyncChrome as Chrome
 
 
-class TestAsyncChrome:
-    """异步Chrome测试类"""
+class TestCloudflare:
+    """测试5s盾"""
 
     @pytest.mark.asyncio
-    async def test_basic_navigation(self):
+    async def test_cloudflare(self):
         # url = "https://fractal-testnet.unisat.io/explorer"
         url = "https://steamdb.info/"
         # url = "https://cn.airbusan.com/content/individual"
