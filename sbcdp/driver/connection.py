@@ -273,14 +273,14 @@ class Connection(metaclass=CantTouchThis):
                 )
                 self.listener = Listener(self)
             except (Exception,) as e:
-                logger.debug("Exception during opening of websocket: %s", e)
+                logger.debug("Exception during opening of websocket: %s" % e)
                 if self.listener:
                     await self.listener.cancel()
                 raise
         if not self.listener or not self.listener.running:
             self.listener = Listener(self)
             logger.debug(
-                "\n✅ Opened websocket connection to %s", self.websocket_url
+                "\n✅ Opened websocket connection to %s" % self.websocket_url
             )
         # When a websocket connection is closed (either by error or on purpose)
         # and reconnected, the registered event listeners (if any), should be
@@ -296,14 +296,14 @@ class Connection(metaclass=CantTouchThis):
                 await self.websocket.close()
             except Exception:
                 logger.debug(
-                    "\n❌ Error closing websocket connection to %s",
+                    "\n❌ Error closing websocket connection to %s" %
                     self.websocket_url
                 )
             if self.listener and self.listener.running:
                 await self.listener.cancel()
                 self.enabled_domains.clear()
             logger.debug(
-                "\n❌ Closed websocket connection to %s", self.websocket_url
+                "\n❌ Closed websocket connection to %s" % self.websocket_url
             )
 
     async def sleep(self, t: Union[int, float] = 0.25):
@@ -512,15 +512,15 @@ class Connection(metaclass=CantTouchThis):
                     continue
                 try:
                     # Prevent infinite loops.
-                    logger.debug("Registered %s", domain_mod)
+                    logger.debug("Registered %s" % domain_mod)
                     self.enabled_domains.append(domain_mod)
                     await self.send(domain_mod.enable(), _is_update=True)
                 except BaseException:  # Don't error before request is sent
-                    logger.debug("", exc_info=True)
+                    logger.debug("", True)
                     try:
                         self.enabled_domains.remove(domain_mod)
                     except BaseException:
-                        logger.debug("NOT GOOD", exc_info=True)
+                        logger.debug("NOT GOOD", True)
                         continue
                 finally:
                     continue
@@ -618,7 +618,7 @@ class Listener:
             except (Exception,) as e:
                 logger.debug(
                     "Connection listener exception "
-                    "while reading websocket:\n%s", e
+                    "while reading websocket:\n%s" % e
                 )
                 break
             if not self.running:
@@ -630,9 +630,7 @@ class Listener:
             if "id" in message:
                 if message["id"] in self.connection.mapper:
                     tx = self.connection.mapper.pop(message["id"])
-                    logger.debug(
-                        "Got answer for %s (message_id:%d)", tx, message["id"]
-                    )
+                    logger.debug(f"Got answer for {tx} (message_id:{message["id"]})")
                     tx(**message)
                 else:
                     if message["id"] == -2:
@@ -653,11 +651,10 @@ class Listener:
                     logger.info(
                         "%s: %s during parsing of json from event : %s"
                         % (type(e).__name__, e.args, message),
-                        exc_info=True,
                     )
                     continue
                 except KeyError as e:
-                    logger.info("KeyError: %s" % e, exc_info=True)
+                    logger.error(f"KeyError: {e}")
                     continue
                 try:
                     if type(event) in self.connection.handlers:
@@ -683,11 +680,7 @@ class Listener:
                                     callback(event)
                         except Exception as e:
                             logger.warning(
-                                "Exception in callback %s for event %s => %s",
-                                callback,
-                                event.__class__.__name__,
-                                e,
-                                exc_info=True,
+                                f"Exception in callback {callback} for event {event.__class__.__name__} => {e}", True
                             )
                             raise
                 except asyncio.CancelledError:

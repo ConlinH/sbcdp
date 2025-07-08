@@ -320,14 +320,14 @@ def find_chrome_executable(return_all=False):
     rv = []
     for candidate in candidates:
         if os.path.exists(candidate) and os.access(candidate, os.X_OK):
-            logger.debug("%s is a valid candidate... " % candidate)
+            # logger.debug("%s is a valid candidate... " % candidate)
             rv.append(candidate)
-        else:
-            logger.debug(
-                "%s is not a valid candidate because it doesn't exist "
-                "or isn't an executable."
-                % candidate
-            )
+        # else:
+        #     logger.debug(
+        #         "%s is not a valid candidate because it doesn't exist "
+        #         "or isn't an executable."
+        #         % candidate
+        #     )
     winner = None
     if return_all and rv:
         return rv

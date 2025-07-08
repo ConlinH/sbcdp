@@ -503,7 +503,7 @@ class Element:
         except AttributeError:
             return
         if not center:
-            logger.warning("Could not calculate box model for %s", self)
+            logger.warning("Could not calculate box model for %s"% self)
             return
         logger.debug("Clicking on location: %.2f, %.2f" % center)
         await asyncio.gather(
@@ -543,12 +543,10 @@ class Element:
         try:
             center = (await self.get_position_async()).center
         except AttributeError:
-            logger.debug("Did not find location for %s", self)
+            logger.debug("Did not find location for %s" % self)
             return
         logger.debug(
-            "Mouse move to location %.2f, %.2f where %s is located",
-            *center,
-            self,
+            "Mouse move to location {}, {} where {} is located".format(*center, self)
         )
         await self._tab.send(
             cdp.input_.dispatch_mouse_event(
@@ -587,7 +585,7 @@ class Element:
         except AttributeError:
             return
         if not start_point:
-            logger.warning("Could not calculate box model for %s", self)
+            logger.warning("Could not calculate box model for %s" % self)
             return
         end_point = None
         if isinstance(destination, Element):
@@ -597,7 +595,7 @@ class Element:
                 return
             if not end_point:
                 logger.warning(
-                    "Could not calculate box model for %s", destination
+                    "Could not calculate box model for %s" % destination
                 )
                 return
         elif isinstance(destination, (tuple, list)):
@@ -662,7 +660,7 @@ class Element:
                 )
             )
         except Exception as e:
-            logger.debug("Could not scroll into view: %s", e)
+            logger.debug("Could not scroll into view: %s" % e)
             return
         # await self.apply("""(el) => el.scrollIntoView(false)""")
 
@@ -671,7 +669,7 @@ class Element:
         try:
             await self.apply('function (element) { element.value = "" } ')
         except Exception as e:
-            logger.debug("Could not clear element field: %s", e)
+            logger.debug("Could not clear element field: %s" % e)
         return
 
     async def send_keys_async(self, text: str):

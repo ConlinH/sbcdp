@@ -208,14 +208,12 @@ class Browser:
                 )
             )
             current_target = current_tab.target
-            if logger.getEffectiveLevel() <= 10:
-                changes = util.compare_target_info(
-                    current_target, target_info
-                )
+            if logger._core.min_level <= 10:
+                changes = util.compare_target_info(current_target, target_info)
                 changes_string = ""
                 for change in changes:
                     key, old, new = change
-                    changes_string += f"\n{key}: {old} => {new}\n"
+                    changes_string += f"{key}: {old} => {new}\t"
                 logger.debug(
                     "Target #%d has changed: %s"
                     % (self.targets.index(current_tab), changes_string)
@@ -437,11 +435,7 @@ class Browser:
             )  # noqa
         exe = self.config.browser_executable_path
         params = self.config()
-        logger.info(
-            "Starting\n\texecutable :%s\n\narguments:\n%s",
-            exe,
-            "\n\t".join(params),
-        )
+        logger.info(f'Starting\n\texecutable :{exe}\n\targuments:\n\t\t{"\n\t\t".join(params)}')
         if not connect_existing:
             self._process: asyncio.subprocess.Process = (
                 await asyncio.create_subprocess_exec(
@@ -466,7 +460,7 @@ class Browser:
                 )
             except (Exception,):
                 if _ == 4:
-                    logger.debug("Could not start", exc_info=True)
+                    logger.debug("Could not start", True)
                 await self.sleep(0.5)
             else:
                 break
@@ -625,9 +619,7 @@ class Browser:
                     await tab.set_window_size(*pos)
                 except Exception:
                     logger.info(
-                        "Could not set window size. Exception => ",
-                        exc_info=True,
-                    )
+                        "Could not set window size. Exception => ", True)
                     continue
         return grid
 
@@ -735,7 +727,7 @@ class Browser:
                             )
                             break
                     except (TypeError,):
-                        logger.info("typerror", exc_info=True)
+                        logger.info("typerror", True)
                         pass
                     except (PermissionError,):
                         logger.info(
