@@ -45,7 +45,7 @@ setup(
     description="SBCDP - Pure CDP (Chrome DevTools Protocol) Automation Framework",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
-    author="ConlinH",
+    author="conlin",
     author_email="995018884@qq.com",
     url="https://github.com/ConlinH/sbcdp",
     project_urls={
@@ -62,14 +62,6 @@ setup(
     include_package_data=True,
     install_requires=get_requirements(),
     extras_require={
-        "dev": [
-            "pytest>=7.0.0",
-            "pytest-asyncio>=0.21.0",
-            "pytest-cov>=4.0.0",
-            "black>=23.0.0",
-            "flake8>=6.0.0",
-            "mypy>=1.0.0",
-        ],
         "test": [
             "pytest>=7.0.0",
             "pytest-asyncio>=0.21.0",
