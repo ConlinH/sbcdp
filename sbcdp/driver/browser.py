@@ -19,7 +19,6 @@ from typing import List, Optional, Set, Tuple, Union
 import mycdp as cdp
 from loguru import logger
 
-from .. import config as sb_config
 from . import cdp_util as util
 from . import tab
 from ._contradict import ContraDict
@@ -39,6 +38,7 @@ def deconstruct_browser():
             try:
                 if _.config and not _.config.uses_custom_data_dir:
                     shutil.rmtree(_.config.user_data_dir, ignore_errors=False)
+                    logger.debug("Temp profile %s was removed." % _.config.user_data_dir)
             except FileNotFoundError:
                 break
             except (PermissionError, OSError) as e:
@@ -52,7 +52,6 @@ def deconstruct_browser():
                     break
                 time.sleep(0.15)
                 continue
-        logger.debug("Temp profile %s was removed." % _.config.user_data_dir)
 
 
 class Browser:
@@ -79,8 +78,8 @@ class Browser:
     Sometimes it's stubborn to close it, so make sure that after using
     this library, the browser is correctly and fully closed/exited/killed.
     """
-    _process: asyncio.subprocess.Process
-    _process_pid: int
+    _process: Optional[asyncio.subprocess.Process]
+    _process_pid: Optional[int]
     _http: HTTPApi = None
     _cookies: CookieJar = None
     config: Config
@@ -147,7 +146,7 @@ class Browser:
         self._process_pid = None
         self._keep_user_data_dir = None
         self._is_updating = asyncio.Event()
-        self.connection: Connection = None
+        self.connection: Optional[Connection] = None
         logger.debug("Session object initialized: %s" % vars(self))
 
     @property
@@ -285,77 +284,83 @@ class Browser:
             connection: tab.Tab = next(
                 filter(lambda item: item.type_ == "page", self.targets)
             )
-            _cdp_timezone = None
-            _cdp_user_agent = ""
-            _cdp_locale = None
-            _cdp_platform = None
-            _cdp_geolocation = None
-            _cdp_recorder = None
+            timezone = None
+            user_agent = ""
+            locale = None
+            platform = None
+            geolocation = None
+            recorder = None
             if (
-                hasattr(sb_config, "_cdp_timezone") and sb_config._cdp_timezone
+                hasattr(self.config, "timezone") and self.config.timezone
             ):
-                _cdp_timezone = sb_config._cdp_timezone
+                timezone = self.config.timezone
             if (
-                hasattr(sb_config, "_cdp_user_agent")
-                and sb_config._cdp_user_agent
+                hasattr(self.config, "user_agent")
+                and self.config.user_agent
             ):
-                _cdp_user_agent = sb_config._cdp_user_agent
-            if hasattr(sb_config, "_cdp_locale") and sb_config._cdp_locale:
-                _cdp_locale = sb_config._cdp_locale
-            if hasattr(sb_config, "_cdp_platform") and sb_config._cdp_platform:
-                _cdp_platform = sb_config._cdp_platform
+                user_agent = self.config.user_agent
+            if hasattr(self.config, "locale") and self.config.locale:
+                locale = self.config.locale
+            if hasattr(self.config, "platform") and self.config.platform:
+                platform = self.config.platform
             if (
-                hasattr(sb_config, "_cdp_geolocation")
-                and sb_config._cdp_geolocation
+                hasattr(self.config, "geolocation")
+                and self.config.geolocation
             ):
-                _cdp_geolocation = sb_config._cdp_geolocation
+                geolocation = self.config.geolocation
             if "timezone" in kwargs:
-                _cdp_timezone = kwargs["timezone"]
+                timezone = kwargs["timezone"]
             elif "tzone" in kwargs:
-                _cdp_timezone = kwargs["tzone"]
+                timezone = kwargs["tzone"]
+
             if "user_agent" in kwargs:
-                _cdp_user_agent = kwargs["user_agent"]
+                user_agent = kwargs["user_agent"]
             elif "agent" in kwargs:
-                _cdp_user_agent = kwargs["agent"]
+                user_agent = kwargs["agent"]
+
             if "locale" in kwargs:
-                _cdp_locale = kwargs["locale"]
+                locale = kwargs["locale"]
             elif "lang" in kwargs:
-                _cdp_locale = kwargs["lang"]
+                locale = kwargs["lang"]
             elif "locale_code" in kwargs:
-                _cdp_locale = kwargs["locale_code"]
+                locale = kwargs["locale_code"]
+
             if "platform" in kwargs:
-                _cdp_platform = kwargs["platform"]
+                platform = kwargs["platform"]
             elif "plat" in kwargs:
-                _cdp_platform = kwargs["plat"]
+                platform = kwargs["plat"]
+
             if "geolocation" in kwargs:
-                _cdp_geolocation = kwargs["geolocation"]
+                geolocation = kwargs["geolocation"]
             elif "geoloc" in kwargs:
-                _cdp_geolocation = kwargs["geoloc"]
+                geolocation = kwargs["geoloc"]
+
             if "recorder" in kwargs:
-                _cdp_recorder = kwargs["recorder"]
-            if _cdp_timezone:
+                recorder = kwargs["recorder"]
+
+            if timezone:
                 await connection.send(cdp.page.navigate("about:blank"))
-                await connection.set_timezone(_cdp_timezone)
-            if _cdp_locale:
-                await connection.set_locale(_cdp_locale)
-            if _cdp_user_agent or _cdp_locale or _cdp_platform:
+                await connection.set_timezone(timezone)
+            if locale:
+                await connection.set_locale(locale)
+            if user_agent or locale or platform:
                 await connection.send(cdp.page.navigate("about:blank"))
                 await connection.set_user_agent(
-                    user_agent=_cdp_user_agent,
-                    accept_language=_cdp_locale,
-                    platform=_cdp_platform,
+                    user_agent=user_agent,
+                    accept_language=locale,
+                    platform=platform,
                 )
-            if _cdp_geolocation:
+            if geolocation:
                 await connection.send(cdp.page.navigate("about:blank"))
-                await connection.set_geolocation(_cdp_geolocation)
+                await connection.set_geolocation(geolocation)
             # Use the tab to navigate to new url
             if (
-                hasattr(sb_config, "_cdp_proxy")
-                and "@" in sb_config._cdp_proxy
-                and sb_config._cdp_proxy
+                hasattr(self.config, "proxy")
+                and self.config.proxy
+                and "@" in self.config.proxy
                 and "auth" not in kwargs
             ):
-                username_and_password = sb_config._cdp_proxy.split("@")[0]
+                username_and_password = self.config.proxy.split("@")[0]
                 proxy_user = username_and_password.split(":")[0]
                 proxy_pass = username_and_password.split(":")[1]
                 await connection.set_auth(
@@ -373,9 +378,9 @@ class Browser:
             frame_id, loader_id, *_ = await connection.send(
                 cdp.page.navigate(url)
             )
-            if _cdp_recorder:
+            if recorder:
                 pass  # (The code below was for the Chrome 137 extension fix)
-                '''from seleniumbase.js_code.recorder_js import recorder_js
+                '''from sbcdp.js_code.recorder_js import recorder_js
                 recorder_code = (
                     """window.onload = function() { %s };""" % recorder_js
                 )
@@ -386,7 +391,7 @@ class Browser:
         await connection.sleep(0.25)
         return connection
 
-    async def start(self=None) -> Browser:
+    async def start(self=None) -> Optional[Browser]:
         """Launches the actual browser."""
         if not self:
             warnings.warn(
@@ -460,7 +465,7 @@ class Browser:
                 )
             except (Exception,):
                 if _ == 4:
-                    logger.debug("Could not start", True)
+                    logger.opt(exception=True).debug("Could not start")
                 await self.sleep(0.5)
             else:
                 break
@@ -574,7 +579,7 @@ class Browser:
         try:
             import mss
         except Exception:
-            from seleniumbase.fixtures import shared_utils
+            from ..fixtures import shared_utils
             shared_utils.pip_install("mss")
             import mss
         m = mss.mss()
@@ -618,8 +623,7 @@ class Browser:
                     grid.append(pos)
                     await tab.set_window_size(*pos)
                 except Exception:
-                    logger.info(
-                        "Could not set window size. Exception => ", True)
+                    logger.opt(exception=True).info("Could not set window size. Exception => ")
                     continue
         return grid
 
@@ -727,7 +731,7 @@ class Browser:
                             )
                             break
                     except (TypeError,):
-                        logger.info("typerror", True)
+                        logger.opt(exception=True).info("typerror")
                         pass
                     except (PermissionError,):
                         logger.info(

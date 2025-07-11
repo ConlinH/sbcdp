@@ -8,7 +8,7 @@ from typing import Union, List, Optional
 
 from loguru import logger
 
-from ..config import settings
+from .. import settings
 
 __all__ = [
     "Config",
@@ -37,7 +37,7 @@ class Config:
         browser_executable_path: Optional[PathLike] = AUTO,
         browser_args: Optional[List[str]] = AUTO,
         sandbox: Optional[bool] = True,
-        lang: Optional[str] = "en-US",
+        # lang: Optional[str] = "en-US",
         host: str = AUTO,
         port: int = AUTO,
         expert: bool = AUTO,
@@ -82,7 +82,7 @@ class Config:
             self._user_data_dir = temp_profile_dir()
             self._custom_data_dir = False
         else:
-            self.user_data_dir = user_data_dir
+            self.user_data_dir = os.path.abspath(user_data_dir)
         if not browser_executable_path:
             browser_executable_path = find_chrome_executable()
         self._browser_args = browser_args
@@ -103,7 +103,7 @@ class Config:
             logger.info("Detected root usage, auto-disabling sandbox mode.")
             self.sandbox = False
         self.autodiscover_targets = True
-        self.lang = lang
+        # self.lang = lang
         # Other keyword args will be accessible by attribute
         self.__dict__.update(kwargs)
         super().__init__()

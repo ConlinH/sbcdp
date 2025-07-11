@@ -4,8 +4,7 @@ import warnings
 import zipfile
 from contextlib import suppress
 
-from ..config import proxy_list
-from ..config import settings
+from .. import settings
 from ..fixtures import constants
 from ..fixtures import page_utils
 from ..fixtures import shared_utils
@@ -169,8 +168,8 @@ def remove_proxy_zip_if_present():
 
 
 def validate_proxy_string(proxy_string, keep_scheme=False):
-    if proxy_string in proxy_list.PROXY_LIST.keys():
-        proxy_string = proxy_list.PROXY_LIST[proxy_string]
+    if proxy_string in settings.PROXY_LIST.keys():
+        proxy_string = settings.PROXY_LIST[proxy_string]
         if not proxy_string:
             return None
     proxy_scheme = "http"
@@ -217,7 +216,7 @@ def validate_proxy_string(proxy_string, keep_scheme=False):
         __display_proxy_warning(proxy_string)
         proxy_string = None
     if keep_scheme:
-        return (proxy_string, proxy_scheme)
+        return proxy_string, proxy_scheme
     return proxy_string
 
 
@@ -226,7 +225,7 @@ def __display_proxy_warning(proxy_string):
         '\nWARNING: Proxy String ["%s"] is NOT in the expected '
         '"ip_address:port" or "server:port" format, '
         "(OR the key does not exist in "
-        "seleniumbase.config.proxy_list.PROXY_LIST)." % proxy_string
+        "sbcdp.config.proxy_list.PROXY_LIST)." % proxy_string
     )
     if settings.RAISE_INVALID_PROXY_STRING_EXCEPTION:
         raise Exception(message)

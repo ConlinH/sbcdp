@@ -2,7 +2,7 @@ import os
 import shutil
 import time
 
-from ..config import settings
+from .. import settings
 from ..fixtures import constants
 
 # The "downloads_folder" is a folder for saving downloaded files.

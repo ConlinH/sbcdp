@@ -12,8 +12,7 @@ from typing import Optional, List, Union, Callable
 import fasteners
 import mycdp as cdp
 
-from .. import config as sb_config
-from ..config import settings
+from .. import settings
 from ..core import detect_b_ver
 from ..core import download_helper
 from ..core import proxy_helper
@@ -34,7 +33,7 @@ AD_BLOCK_ZIP_PATH = None
 T = typing.TypeVar("T")
 
 
-def __activate_standard_virtual_display():
+def __activate_standard_virtual_display(config):
     from sbvirtualdisplay import Display
     width = settings.HEADLESS_START_WIDTH
     height = settings.HEADLESS_START_HEIGHT
@@ -43,20 +42,20 @@ def __activate_standard_virtual_display():
             visible=0, size=(width, height)
         )
         _xvfb_display.start()
-        sb_config._virtual_display = _xvfb_display
-        sb_config.headless_active = True
+        config._virtual_display = _xvfb_display
+        config.headless_active = True
 
 
 def __activate_virtual_display_as_needed(
-    headless, headed, xvfb, xvfb_metrics
+    headless, headed, xvfb, xvfb_metrics, config
 ):
     """This is only needed on Linux."""
     if (
         IS_LINUX
         and (not headed or xvfb)
         and (
-            not hasattr(sb_config, "_virtual_display")
-            or not sb_config._virtual_display
+            not hasattr(config, "_virtual_display")
+            or not config._virtual_display
         )
     ):
         from sbvirtualdisplay import Display
@@ -79,10 +78,10 @@ def __activate_virtual_display_as_needed(
                             # The minimum width,height is: 1024,768
                             if _xvfb_width < 1024:
                                 _xvfb_width = 1024
-                            sb_config._xvfb_width = _xvfb_width
+                            config._xvfb_width = _xvfb_width
                             if _xvfb_height < 768:
                                 _xvfb_height = 768
-                            sb_config._xvfb_height = _xvfb_height
+                            config._xvfb_height = _xvfb_height
                             xvfb = True
                     if not _xvfb_width:
                         _xvfb_width = 1366
@@ -104,17 +103,17 @@ def __activate_virtual_display_as_needed(
                         print(
                             "\nX11 display failed! Will use regular xvfb!"
                         )
-                        __activate_standard_virtual_display()
+                        __activate_standard_virtual_display(config)
                     else:
-                        sb_config._virtual_display = _xvfb_display
-                        sb_config.headless_active = True
+                        config._virtual_display = _xvfb_display
+                        config.headless_active = True
                 except Exception as e:
                     if hasattr(e, "msg"):
                         print("\n" + str(e.msg))
                     else:
                         print(e)
                     print("\nX11 display failed! Will use regular xvfb!")
-                    __activate_standard_virtual_display()
+                    __activate_standard_virtual_display(config)
                     return
                 pyautogui_is_installed = False
                 try:
@@ -147,7 +146,7 @@ def __activate_virtual_display_as_needed(
                         pyautogui._pyautogui_x11._display = (
                             Xlib.display.Display(os.environ['DISPLAY'])
                         )
-                        sb_config._pyautogui_x11_display = (
+                        config._pyautogui_x11_display = (
                             pyautogui._pyautogui_x11._display
                         )
                     except Exception as e:
@@ -156,7 +155,7 @@ def __activate_virtual_display_as_needed(
                         else:
                             print(e)
             else:
-                __activate_standard_virtual_display()
+                __activate_standard_virtual_display(config)
 
 
 def __set_proxy_filenames():
@@ -266,16 +265,16 @@ async def start(
     xvfb_metrics: Optional[List[str]] = None,  # "Width,Height" for Linux
     ad_block: Optional[bool] = False,
     sandbox: Optional[bool] = True,
-    lang: Optional[str] = None,  # Set the Language Locale Code
+    # locale: Optional[str] = None,  # Set the Language Locale Code
     host: Optional[str] = None,  # Chrome remote-debugging-host
     port: Optional[int] = None,  # Chrome remote-debugging-port
     xvfb: Optional[int] = None,  # Use a special virtual display on Linux
     headed: Optional[bool] = None,  # Override default Xvfb mode on Linux
     expert: Optional[bool] = None,  # Open up closed Shadow-root elements
-    agent: Optional[str] = None,  # Set the user-agent string
+    # agent: Optional[str] = None,  # Set the user-agent string
     proxy: Optional[str] = None,  # "host:port" or "user:pass@host:port"
-    tzone: Optional[str] = None,  # Eg "America/New_York", "Asia/Kolkata"
-    geoloc: Optional[list | tuple] = None,  # Eg (48.87645, 2.26340)
+    # timezone: Optional[str] = None,  # Eg "America/New_York", "Asia/Kolkata"
+    # geoloc: Optional[list | tuple] = None,  # Eg (48.87645, 2.26340)
     extension_dir: Optional[str] = None,  # Chrome extension directory
     **kwargs: Optional[dict],
 ) -> Browser:
@@ -318,9 +317,26 @@ async def start(
      (For example, ensuring shadow-root is always in "open" mode.)
     :type expert: bool
     """
+    if not config:
+        config = Config(
+            user_data_dir,
+            headless,
+            incognito,
+            guest,
+            browser_executable_path,
+            browser_args,
+            sandbox,
+            host=host,
+            port=port,
+            expert=expert,
+            proxy=proxy,
+            extension_dir=extension_dir,
+            **kwargs,
+        )
+
     if IS_LINUX and not headless and not headed and not xvfb:
         xvfb = True  # The default setting on Linux
-    __activate_virtual_display_as_needed(headless, headed, xvfb, xvfb_metrics)
+    __activate_virtual_display_as_needed(headless, headed, xvfb, xvfb_metrics, config)
     if proxy and "@" in str(proxy):
         user_with_pass = proxy.split("@")[0]
         if ":" in user_with_pass:
@@ -338,93 +354,43 @@ async def start(
                 proxy_scheme,
             )
     if ad_block:
-        incognito = False
-        guest = False
+        config.incognito = False
+        config.guest = False
         ad_block_zip = AD_BLOCK_ZIP_PATH
         ad_block_dir = os.path.join(DOWNLOADS_FOLDER, "ad_block")
         __unzip_to_new_folder(ad_block_zip, ad_block_dir)
-        extension_dir = __add_chrome_ext_dir(extension_dir, ad_block_dir)
+        config.extension_dir = __add_chrome_ext_dir(extension_dir, ad_block_dir)
     if (
         "binary_location" in kwargs
         and not browser_executable_path
     ):
-        browser_executable_path = kwargs["binary_location"]
-    if not config:
-        config = Config(
-            user_data_dir,
-            headless,
-            incognito,
-            guest,
-            browser_executable_path,
-            browser_args,
-            sandbox,
-            lang,
-            host=host,
-            port=port,
-            expert=expert,
-            proxy=proxy,
-            extension_dir=extension_dir,
-            **kwargs,
-        )
+        config.browser_executable_path = kwargs["binary_location"]
+
     try:
         driver = await Browser.create(config)
     except Exception:
         time.sleep(0.15)
         driver = await Browser.create(config)
-    if proxy:
-        sb_config._cdp_proxy = proxy
-        if "@" in str(proxy):
-            time.sleep(0.15)
-    if lang:
-        sb_config._cdp_locale = lang
-    elif "locale" in kwargs:
-        sb_config._cdp_locale = kwargs["locale"]
-    elif "locale_code" in kwargs:
-        sb_config._cdp_locale = kwargs["locale_code"]
-    if tzone:
-        sb_config._cdp_timezone = tzone
-    elif "timezone" in kwargs:
-        sb_config._cdp_timezone = kwargs["timezone"]
-    else:
-        sb_config._cdp_timezone = None
-    if geoloc:
-        sb_config._cdp_geolocation = geoloc
-    elif "geolocation" in kwargs:
-        sb_config._cdp_geolocation = kwargs["geolocation"]
-    else:
-        sb_config._cdp_geolocation = None
-    if agent:
-        sb_config._cdp_user_agent = agent
-    elif "user_agent" in kwargs:
-        sb_config._cdp_user_agent = kwargs["user_agent"]
-    else:
-        sb_config._cdp_user_agent = None
-    if "platform" in kwargs:
-        sb_config._cdp_platform = kwargs["platform"]
-    elif "plat" in kwargs:
-        sb_config._cdp_platform = kwargs["plat"]
-    else:
-        sb_config._cdp_platform = None
     return driver
 
 
-async def start_async(*args, **kwargs) -> Browser:
+async def start_async(*args, chrome_type="google-chrome", **kwargs) -> Browser:
     headless = False
-    binary_location = None
     if "browser_executable_path" in kwargs:
         binary_location = kwargs["browser_executable_path"]
         if binary_location and isinstance(binary_location, str):
             binary_location = binary_location.strip()
     else:
-        binary_location = detect_b_ver.get_binary_location("google-chrome")
+        binary_location = detect_b_ver.get_binary_location(chrome_type)
         if binary_location and isinstance(binary_location, str):
             binary_location = binary_location.strip()
             if not os.path.exists(binary_location):
                 binary_location = None
+    kwargs["binary_location"] = binary_location
     if (
-        shared_utils.is_chrome_130_or_newer(binary_location)
-        and "user_data_dir" in kwargs
+        "user_data_dir" in kwargs
         and kwargs["user_data_dir"]
+        and shared_utils.is_chrome_130_or_newer(binary_location)
     ):
         if "headless" in kwargs:
             headless = kwargs["headless"]
@@ -439,8 +405,7 @@ async def start_async(*args, **kwargs) -> Browser:
     return await start(*args, **kwargs)
 
 
-def start_sync(*args, **kwargs) -> Browser:
-    loop = None
+def start_sync(*args, chrome_type="google-chrome", **kwargs) -> Browser:
     if (
         "loop" in kwargs
         and kwargs["loop"]
@@ -450,21 +415,20 @@ def start_sync(*args, **kwargs) -> Browser:
     else:
         loop = asyncio.new_event_loop()
     headless = False
-    binary_location = None
     if "browser_executable_path" in kwargs:
         binary_location = kwargs["browser_executable_path"]
         if binary_location and isinstance(binary_location, str):
             binary_location = binary_location.strip()
     else:
-        binary_location = detect_b_ver.get_binary_location("google-chrome")
+        binary_location = detect_b_ver.get_binary_location(chrome_type)
         if binary_location and isinstance(binary_location, str):
             binary_location = binary_location.strip()
             if not os.path.exists(binary_location):
                 binary_location = None
     if (
-        shared_utils.is_chrome_130_or_newer(binary_location)
-        and "user_data_dir" in kwargs
+        "user_data_dir" in kwargs
         and kwargs["user_data_dir"]
+        and shared_utils.is_chrome_130_or_newer(binary_location)
     ):
         if "headless" in kwargs:
             headless = kwargs["headless"]
@@ -515,7 +479,7 @@ def free_port() -> int:
 
 
 def filter_recurse_all(
-    doc: T, predicate: Callable[[cdp.dom.Node, Element], bool]
+    doc: T, predicate: Callable[[cdp.dom.Node | Element], bool]
 ) -> List[T]:
     """
     Test each child using predicate(child),
@@ -540,7 +504,7 @@ def filter_recurse_all(
 
 
 def filter_recurse(
-    doc: T, predicate: Callable[[cdp.dom.Node, Element], bool]
+    doc: T, predicate: Callable[[cdp.dom.Node | Element], bool]
 ) -> T:
     """
     Test each child using predicate(child),
@@ -552,6 +516,8 @@ def filter_recurse(
     if not hasattr(doc, "children"):
         raise TypeError("Object should have a .children attribute!")
     if doc and doc.children:
+        if predicate(doc):
+            return doc
         for child in doc.children:
             if predicate(child):
                 return child

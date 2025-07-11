@@ -5,7 +5,7 @@ Contains only essential JavaScript execution methods.
 
 import time
 
-from ..config import settings
+from .. import settings
 
 
 # Define By constants locally for CDP-Base

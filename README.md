@@ -95,9 +95,9 @@ async def main():
     # url = "https://www.e-food.gr/"
     async with Chrome() as chrome:
         await chrome.get(url)
-        await chrome.sleep(5)
         with suppress(Exception):
-            await chrome.mouse_click('input[type=checkbox]')
+            await chrome.verify_cf("确认您是真人")
+        await chrome.sleep(4)
         assert 'cf_clearance' in {c.name: c.value for c in await chrome.get_all_cookies()}
         print({c.name: c.value for c in await chrome.get_all_cookies()})
 
@@ -115,6 +115,7 @@ if __name__ == "__main__":
 - `type(selector, text)` - 输入文本 | Type text
 - `get_text(selector)` - 获取文本 | Get text
 - `get_attribute(selector, attr)` - 获取属性 | Get attribute
+- `shadow_root_query_selector(selector)` - 查询shadow dom | select shadow dom
 
 ### 增强交互 | Enhanced Interaction
 - `mouse_click(selector)` - 鼠标点击 | Mouse click

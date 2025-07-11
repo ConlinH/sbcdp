@@ -9,16 +9,17 @@ import sys
 import re
 import os
 from contextlib import suppress
+from typing import Optional, Union
 
 import fasteners
 
-from .. import config as sb_config
-from ..config import settings
+from .. import settings
 from ..fixtures import page_utils
 from ..fixtures import js_utils
 from ..fixtures import shared_utils
 from ..fixtures import constants
 from ..driver import cdp_util
+from ..driver import element
 
 
 class AsyncCDPMethods:
@@ -30,12 +31,12 @@ class AsyncCDPMethods:
 
     async def __slow_mode_pause_if_set(self):
         if (
-            (hasattr(sb_config, "demo_mode") and sb_config.demo_mode)
+            (hasattr(self.driver.config, "demo_mode") and self.driver.config.demo_mode)
             or "--demo" in sys.argv
         ):
             await asyncio.sleep(0.48)
         elif (
-            (hasattr(sb_config, "slow_mode") and sb_config.slow_mode)
+            (hasattr(self.driver.config, "slow_mode") and self.driver.config.slow_mode)
             or "--slow" in sys.argv
         ):
             await asyncio.sleep(0.24)
@@ -90,11 +91,209 @@ class AsyncCDPMethods:
         element.get_attribute = lambda attribute: self.__get_attribute(element, attribute)
         # element.get_parent() should come last
         element.get_parent = lambda: self.__get_parent(element)
+
+        # shadow root
+        element.sr_query_selector = (
+            lambda selector: self.__shadow_root_query_selector(element, selector)
+        )
+        element.shadow_root_query_selector = element.sr_query_selector
+        element.sr_query_selector_all = (
+            lambda selector: self.__shadow_root_query_selector_all(element, selector)
+        )
+        element.shadow_root_query_selector_all = element.sr_query_selector_all
         return element
 
-    async def get(self, url, **kwargs):
+    async def __shadow_root_query_selector(self, element, selector: str):
+        selector = self.__convert_to_css_if_xpath(selector)
+        element2 = await element.shadow_root_query_selector_async(selector)
+        element2 = self.__add_element_methods(element2)
+        return element2
+
+    async def __shadow_root_query_selector_all(self, element, selector):
+        selector = self.__convert_to_css_if_xpath(selector)
+        elements = await element.shadow_root_query_selector_all_async(selector)
+        updated_elements = []
+        for element in elements:
+            element = self.__add_element_methods(element)
+            updated_elements.append(element)
+        await self.__slow_mode_pause_if_set()
+        return updated_elements
+
+    async def __clear_input(self, element):
+        return await element.clear_input_async()
+
+    async def __click(self, element):
+        result = await element.click_async()
+        await self.page.wait()
+        return result
+
+    async def __flash(self, element, *args, **kwargs):
+        await element.scroll_into_view()
+        if len(args) < 3 and "x_offset" not in kwargs:
+            x_offset = await self.__get_x_scroll_offset()
+            kwargs["x_offset"] = x_offset
+        if len(args) < 3 and "y_offset" not in kwargs:
+            y_offset = await self.__get_y_scroll_offset()
+            kwargs["y_offset"] = y_offset
+        return await element.flash_async(*args, **kwargs)
+
+    async def __focus(self, element):
+        return await element.focus_async()
+
+    async def __gui_click(self, element, timeframe=None):
+        element.scroll_into_view()
+        await self.__add_light_pause()
+        position = element.get_position()
+        x = position.x
+        y = position.y
+        e_width = position.width
+        e_height = position.height
+        # Relative to window
+        element_rect = {"height": e_height, "width": e_width, "x": x, "y": y}
+        window_rect = await self.get_window_rect()
+        w_bottom_y = window_rect["y"] + window_rect["height"]
+        viewport_height = window_rect["innerHeight"]
+        x = window_rect["x"] + element_rect["x"]
+        y = w_bottom_y - viewport_height + element_rect["y"]
+        y_scroll_offset = window_rect["pageYOffset"]
+        y = y - y_scroll_offset
+        x = x + window_rect["scrollX"]
+        y = y + window_rect["scrollY"]
+        # Relative to screen
+        element_rect = {"height": e_height, "width": e_width, "x": x, "y": y}
+        e_width = element_rect["width"]
+        e_height = element_rect["height"]
+        e_x = element_rect["x"]
+        e_y = element_rect["y"]
+        x, y = ((e_x + e_width / 2.0) + 0.5), ((e_y + e_height / 2.0) + 0.5)
+        if not timeframe or not isinstance(timeframe, (int, float)):
+            timeframe = 0.25
+        if timeframe > 3:
+            timeframe = 3
+        await self.gui_click_x_y(x, y, timeframe=timeframe)
+        return await self.page.wait()
+
+    async def __highlight_overlay(self, element):
+        return await element.highlight_overlay_async()
+
+    async def __mouse_click(self, element):
+        result = await element.mouse_click_async()
+        await self.page.wait()
+        return result
+
+    async def __mouse_drag(self, element, destination):
+        return await element.mouse_drag_async(destination)
+
+    async def __mouse_move(self, element):
+        return await element.mouse_move_async()
+
+    async def __press_keys(self, element, text):
+        await element.scroll_into_view()
+        submit = False
+        if text.endswith("\n") or text.endswith("\r"):
+            submit = True
+            text = text[:-1]
+        for key in text:
+            await element.send_keys(key)
+            await asyncio.sleep(0.044)
+        if submit:
+            await element.send_keys("\r\n")
+            await asyncio.sleep(0.044)
+        await self.__slow_mode_pause_if_set()
+        return await self.page.sleep(0.025)
+
+    async def __query_selector(self, element, selector):
+        selector = self.__convert_to_css_if_xpath(selector)
+        element2 = await element.query_selector_async(selector)
+        element2 = self.__add_element_methods(element2)
+        return element2
+
+    async def __query_selector_all(self, element, selector):
+        selector = self.__convert_to_css_if_xpath(selector)
+        elements = await element.query_selector_all_async(selector)
+        updated_elements = []
+        for element in elements:
+            element = self.__add_element_methods(element)
+            updated_elements.append(element)
+        await self.__slow_mode_pause_if_set()
+        return updated_elements
+
+    async def __remove_from_dom(self, element):
+        return await element.remove_from_dom_async()
+
+    async def __save_screenshot(self, element, *args, **kwargs):
+        return await element.save_screenshot_async(*args, **kwargs)
+
+    async def __save_to_dom(self, element):
+        return await element.save_to_dom_async()
+
+    async def __scroll_into_view(self, element):
+        await element.scroll_into_view_async()
+        await self.__add_light_pause()
+        return None
+
+    async def __select_option(self, element):
+        return await element.select_option_async()
+
+    async def __send_file(self, element, *file_paths):
+        return await element.send_file_async(*file_paths)
+
+    async def __send_keys(self, element, text):
+        return await element.send_keys_async(text)
+
+    async def __set_text(self, element, value):
+        return await element.set_text_async(value)
+
+    async def __set_value(self, element, value):
+        return await element.set_value_async(value)
+
+    async def __type(self, element, text):
+        with suppress(Exception):
+            await element.clear_input()
+        await element.send_keys(text)
+
+    async def __get_position(self, element):
+        return await element.get_position_async()
+
+    async def __get_html(self, element):
+        return await element.get_html_async()
+
+    async def __get_js_attributes(self, element):
+        return await element.get_js_attributes_async()
+
+    async def __get_attribute(self, element, attribute):
+        try:
+            return (await element.get_js_attributes())[attribute]
+        except Exception as e:
+            if not attribute:
+                raise
+            try:
+                attribute_str = await element.get_js_attributes()
+                locate = ' %s="' % attribute
+                if locate in attribute_str.outerHTML:
+                    outer_html = attribute_str.outerHTML
+                    attr_start = outer_html.find(locate) + len(locate)
+                    attr_end = outer_html.find('"', attr_start)
+                    value = outer_html[attr_start:attr_end]
+                    return value
+            except Exception:
+                pass
+        return None
+
+    async def __get_parent(self, element):
+        return self.__add_element_methods(element.parent)
+
+    async def __get_x_scroll_offset(self):
+        x_scroll_offset = await self.page.evaluate("window.pageXOffset")
+        return x_scroll_offset or 0
+
+    async def __get_y_scroll_offset(self):
+        y_scroll_offset = await self.page.evaluate("window.pageYOffset")
+        return y_scroll_offset or 0
+
+    async def get(self, url, new_tab=False, new_window=False, **kwargs):
         url = shared_utils.fix_url_as_needed(url)
-        await self.page.get(url, **kwargs)
+        await self.page.get(url, new_tab=new_tab, new_window=new_window, **kwargs)
         url_protocol = url.split(":")[0]
         safe_url = True
         if url_protocol not in ["about", "data", "chrome"]:
@@ -108,8 +307,8 @@ class AsyncCDPMethods:
         await self.__slow_mode_pause_if_set()
         await self.page.wait()
 
-    async def open(self, url, **kwargs):
-        await self.get(url, **kwargs)
+    async def open(self, url, new_tab=False, new_window=False, **kwargs):
+        await self.get(url, new_tab=new_tab, new_window=new_window, **kwargs)
 
     async def reload(self, ignore_cache=True, script_to_evaluate_on_load=None):
         await self.page.reload(
@@ -382,180 +581,6 @@ class AsyncCDPMethods:
 
     async def get_navigation_history(self):
         return await self.page.get_navigation_history()
-
-    async def __clear_input(self, element):
-        return await element.clear_input_async()
-
-    async def __click(self, element):
-        result = await element.click_async()
-        await self.page.wait()
-        return result
-
-    async def __flash(self, element, *args, **kwargs):
-        await element.scroll_into_view()
-        if len(args) < 3 and "x_offset" not in kwargs:
-            x_offset = await self.__get_x_scroll_offset()
-            kwargs["x_offset"] = x_offset
-        if len(args) < 3 and "y_offset" not in kwargs:
-            y_offset = await self.__get_y_scroll_offset()
-            kwargs["y_offset"] = y_offset
-        return await element.flash_async(*args, **kwargs)
-
-    async def __focus(self, element):
-        return await element.focus_async()
-
-    async def __gui_click(self, element, timeframe=None):
-        element.scroll_into_view()
-        await self.__add_light_pause()
-        position = element.get_position()
-        x = position.x
-        y = position.y
-        e_width = position.width
-        e_height = position.height
-        # Relative to window
-        element_rect = {"height": e_height, "width": e_width, "x": x, "y": y}
-        window_rect = await self.get_window_rect()
-        w_bottom_y = window_rect["y"] + window_rect["height"]
-        viewport_height = window_rect["innerHeight"]
-        x = window_rect["x"] + element_rect["x"]
-        y = w_bottom_y - viewport_height + element_rect["y"]
-        y_scroll_offset = window_rect["pageYOffset"]
-        y = y - y_scroll_offset
-        x = x + window_rect["scrollX"]
-        y = y + window_rect["scrollY"]
-        # Relative to screen
-        element_rect = {"height": e_height, "width": e_width, "x": x, "y": y}
-        e_width = element_rect["width"]
-        e_height = element_rect["height"]
-        e_x = element_rect["x"]
-        e_y = element_rect["y"]
-        x, y = ((e_x + e_width / 2.0) + 0.5), ((e_y + e_height / 2.0) + 0.5)
-        if not timeframe or not isinstance(timeframe, (int, float)):
-            timeframe = 0.25
-        if timeframe > 3:
-            timeframe = 3
-        await self.gui_click_x_y(x, y, timeframe=timeframe)
-        return await self.page.wait()
-
-    async def __highlight_overlay(self, element):
-        return await element.highlight_overlay_async()
-    
-    async def __mouse_click(self, element):
-        result = await element.mouse_click_async()
-        await self.page.wait()
-        return result
-
-    async def __mouse_drag(self, element, destination):
-        return await element.mouse_drag_async(destination)
-
-    async def __mouse_move(self, element):
-        return await element.mouse_move_async()
-
-    async def __press_keys(self, element, text):
-        await element.scroll_into_view()
-        submit = False
-        if text.endswith("\n") or text.endswith("\r"):
-            submit = True
-            text = text[:-1]
-        for key in text:
-            await element.send_keys(key)
-            await asyncio.sleep(0.044)
-        if submit:
-            await element.send_keys("\r\n")
-            await asyncio.sleep(0.044)
-        await self.__slow_mode_pause_if_set()
-        return await self.page.sleep(0.025)
-
-    async def __query_selector(self, element, selector):
-        selector = self.__convert_to_css_if_xpath(selector)
-        element2 = await element.query_selector_async(selector
-        )
-        element2 = self.__add_element_methods(element2)
-        return element2
-
-    async def __query_selector_all(self, element, selector):
-        selector = self.__convert_to_css_if_xpath(selector)
-        elements = await element.query_selector_all_async(selector
-        )
-        updated_elements = []
-        for element in elements:
-            element = self.__add_element_methods(element)
-            updated_elements.append(element)
-        await self.__slow_mode_pause_if_set()
-        return updated_elements
-
-    async def __remove_from_dom(self, element):
-        return await element.remove_from_dom_async()
-
-    async def __save_screenshot(self, element, *args, **kwargs):
-        return await element.save_screenshot_async(*args, **kwargs)
-
-    async def __save_to_dom(self, element):
-        return await element.save_to_dom_async()
-
-    async def __scroll_into_view(self, element):
-        await element.scroll_into_view_async()
-        await self.__add_light_pause()
-        return None
-
-    async def __select_option(self, element):
-        return await element.select_option_async()
-
-    async def __send_file(self, element, *file_paths):
-        return await element.send_file_async(*file_paths)
-
-    async def __send_keys(self, element, text):
-        return await element.send_keys_async(text)
-
-    async def __set_text(self, element, value):
-        return await element.set_text_async(value)
-
-    async def __set_value(self, element, value):
-        return await element.set_value_async(value)
-
-    async def __type(self, element, text):
-        with suppress(Exception):
-            await element.clear_input()
-        await element.send_keys(text)
-
-    async def __get_position(self, element):
-        return await element.get_position_async()
-
-    async def __get_html(self, element):
-        return await element.get_html_async()
-
-    async def __get_js_attributes(self, element):
-        return await element.get_js_attributes_async()
-
-    async def __get_attribute(self, element, attribute):
-        try:
-            return (await element.get_js_attributes())[attribute]
-        except Exception as e:
-            if not attribute:
-                raise
-            try:
-                attribute_str = await element.get_js_attributes()
-                locate = ' %s="' % attribute
-                if locate in attribute_str.outerHTML:
-                    outer_html = attribute_str.outerHTML
-                    attr_start = outer_html.find(locate) + len(locate)
-                    attr_end = outer_html.find('"', attr_start)
-                    value = outer_html[attr_start:attr_end]
-                    return value
-            except Exception:
-                pass
-        return None
-
-    async def __get_parent(self, element):
-        return self.__add_element_methods(element.parent)
-
-    async def __get_x_scroll_offset(self):
-        x_scroll_offset = await self.page.evaluate("window.pageXOffset")
-        return x_scroll_offset or 0
-
-    async def __get_y_scroll_offset(self):
-        y_scroll_offset = await self.page.evaluate("window.pageYOffset")
-        return y_scroll_offset or 0
 
     async def tile_windows(self, windows=None, max_columns=0):
         """Tile windows and return the grid of tiled windows."""
@@ -1238,32 +1263,32 @@ class AsyncCDPMethods:
                 except Exception:
                     if (
                         shared_utils.is_linux()
-                        and (not sb_config.headed or sb_config.xvfb)
+                        and (not self.driver.config.headed or self.driver.config.xvfb)
                         and not driver.config.headless
                         and (
-                            not hasattr(sb_config, "_virtual_display")
-                            or not sb_config._virtual_display
+                            not hasattr(self.driver.config, "_virtual_display")
+                            or not self.driver.config._virtual_display
                         )
                     ):
                         from sbvirtualdisplay import Display
                         xvfb_width = 1366
                         xvfb_height = 768
                         if (
-                            hasattr(sb_config, "_xvfb_width")
-                            and sb_config._xvfb_width
-                            and isinstance(sb_config._xvfb_width, int)
-                            and hasattr(sb_config, "_xvfb_height")
-                            and sb_config._xvfb_height
-                            and isinstance(sb_config._xvfb_height, int)
+                            hasattr(self.driver.config, "_xvfb_width")
+                            and self.driver.config._xvfb_width
+                            and isinstance(self.driver.config._xvfb_width, int)
+                            and hasattr(self.driver.config, "_xvfb_height")
+                            and self.driver.config._xvfb_height
+                            and isinstance(self.driver.config._xvfb_height, int)
                         ):
-                            xvfb_width = sb_config._xvfb_width
-                            xvfb_height = sb_config._xvfb_height
+                            xvfb_width = self.driver.config._xvfb_width
+                            xvfb_height = self.driver.config._xvfb_height
                             if xvfb_width < 1024:
                                 xvfb_width = 1024
-                            sb_config._xvfb_width = xvfb_width
+                            self.driver.config._xvfb_width = xvfb_width
                             if xvfb_height < 768:
                                 xvfb_height = 768
-                            sb_config._xvfb_height = xvfb_height
+                            self.driver.config._xvfb_height = xvfb_height
                         with suppress(Exception):
                             xvfb_display = Display(
                                 visible=True,
@@ -1285,11 +1310,11 @@ class AsyncCDPMethods:
             and "DISPLAY" in os.environ.keys()
         ):
             if (
-                hasattr(sb_config, "_pyautogui_x11_display")
-                and sb_config._pyautogui_x11_display
+                hasattr(self.driver.config, "_pyautogui_x11_display")
+                and self.driver.config._pyautogui_x11_display
                 and hasattr(pyautogui_copy._pyautogui_x11, "_display")
                 and (
-                    sb_config._pyautogui_x11_display
+                    self.driver.config._pyautogui_x11_display
                     == pyautogui_copy._pyautogui_x11._display
                 )
             ):
@@ -1297,7 +1322,7 @@ class AsyncCDPMethods:
             else:
                 import Xlib.display
                 pyautogui_copy._pyautogui_x11._display = Xlib.display.Display(os.environ['DISPLAY'])
-                sb_config._pyautogui_x11_display = pyautogui_copy._pyautogui_x11._display
+                self.driver.config._pyautogui_x11_display = pyautogui_copy._pyautogui_x11._display
         return pyautogui_copy
 
     async def gui_press_key(self, key):
@@ -1398,7 +1423,7 @@ class AsyncCDPMethods:
                 width_ratio += 0.01
                 if width_ratio < 0.45 or width_ratio > 2.55:
                     width_ratio = 1.01
-                sb_config._saved_width_ratio = width_ratio
+                self.driver.config._saved_width_ratio = width_ratio
                 await self.minimize()
                 await self.__add_light_pause()
                 await self.set_window_rect(win_x, win_y, width, height)
@@ -1476,7 +1501,7 @@ class AsyncCDPMethods:
                 width_ratio += 0.01
                 if width_ratio < 0.45 or width_ratio > 2.55:
                     width_ratio = 1.01
-                sb_config._saved_width_ratio = width_ratio
+                self.driver.config._saved_width_ratio = width_ratio
                 await self.minimize()
                 await self.__add_light_pause()
                 await self.set_window_rect(win_x, win_y, width, height)
@@ -1550,8 +1575,8 @@ class AsyncCDPMethods:
             if (
                 shared_utils.is_windows()
                 and (
-                    not hasattr(sb_config, "_saved_width_ratio")
-                    or not sb_config._saved_width_ratio
+                    not hasattr(self.driver.config, "_saved_width_ratio")
+                    or not self.driver.config._saved_width_ratio
                 )
             ):
                 window_rect = await self.get_window_rect()
@@ -1560,10 +1585,10 @@ class AsyncCDPMethods:
                 win_x = window_rect["x"]
                 win_y = window_rect["y"]
                 if (
-                    hasattr(sb_config, "_saved_width_ratio")
-                    and sb_config._saved_width_ratio
+                    hasattr(self.driver.config, "_saved_width_ratio")
+                    and self.driver.config._saved_width_ratio
                 ):
-                    width_ratio = sb_config._saved_width_ratio
+                    width_ratio = self.driver.config._saved_width_ratio
                 else:
                     scr_width = pyautogui.size().width
                     await self.maximize()
@@ -1573,16 +1598,16 @@ class AsyncCDPMethods:
                     width_ratio += 0.01
                     if width_ratio < 0.45 or width_ratio > 2.55:
                         width_ratio = 1.01
-                    sb_config._saved_width_ratio = width_ratio
+                    self.driver.config._saved_width_ratio = width_ratio
                 await self.set_window_rect(win_x, win_y, width, height)
                 await self.__add_light_pause()
                 await self.bring_active_window_to_front()
             elif (
                 shared_utils.is_windows()
-                and hasattr(sb_config, "_saved_width_ratio")
-                and sb_config._saved_width_ratio
+                and hasattr(self.driver.config, "_saved_width_ratio")
+                and self.driver.config._saved_width_ratio
             ):
-                width_ratio = sb_config._saved_width_ratio
+                width_ratio = self.driver.config._saved_width_ratio
                 await self.bring_active_window_to_front()
             if shared_utils.is_windows():
                 x = x * width_ratio
@@ -1906,6 +1931,28 @@ class AsyncCDPMethods:
         if folder:
             filename = os.path.join(folder, name)
         await self.page.print_to_pdf(filename)
+
+    async def wait_for(
+            self,
+            selector: Optional[str] = "",
+            text: Optional[str] = "",
+            timeout: Optional[Union[int, float]] = 10
+    ) -> element.Element:
+        return await self.page.wait_for(selector, text, timeout=timeout)
+
+    async def verify_cf(self, text="verify you are human", timeout=10):
+        """(An attempt)"""
+        checkbox = None
+        checkbox_sibling = await self.wait_for(text=text, timeout=timeout)
+        if checkbox_sibling:
+            parent = checkbox_sibling.parent
+            while parent:
+                checkbox = await parent.query_selector_async("input[type=checkbox]")
+                if checkbox:
+                    break
+                parent = parent.parent
+        await checkbox.mouse_move_async()
+        await checkbox.mouse_click_async()
 
 
 class SyncCDPMethods(AsyncCDPMethods):

@@ -1,21 +1,103 @@
 """
-For use with SeleniumBase ad_block functionality.
-
-Usage:
-    On the command line:
-    "pytest SOME_TEST.py --ad_block"
-
-    From inside a test:
-    self.ad_block()
-
-If using the command line version, the ad_block functionality gets
-activated after "self.wait_for_ready_state_complete()" is called,
-which is always run after page loads, unless changed in "settings.py".
-Using ad_block will slow down test runs a little. (Use only if necessary.)
-
-Format: A CSS Selector that's ready for JavaScript's querySelectorAll()
+Settings - Simplified configuration for pure CDP automation.
 """
 
+# #####>>>>>----- CORE TIMEOUT SETTINGS -----<<<<<#####
+
+# Default maximum time (in seconds) to wait for page elements to appear.
+MINI_TIMEOUT = 2
+SMALL_TIMEOUT = 7
+LARGE_TIMEOUT = 10
+EXTREME_TIMEOUT = 30
+
+# Default page load timeout.
+PAGE_LOAD_TIMEOUT = 120
+
+# Default page load strategy.
+# ["normal", "eager", "none"]
+PAGE_LOAD_STRATEGY = "normal"
+
+# #####>>>>>----- BROWSER SETTINGS -----<<<<<#####
+
+# Default browser type
+DEFAULT_BROWSER = "chrome"
+
+# Default window size and position
+CHROME_START_WIDTH = 1366
+CHROME_START_HEIGHT = 768
+WINDOW_START_X = 0
+WINDOW_START_Y = 0
+
+# Headless mode window size
+HEADLESS_START_WIDTH = 1366
+HEADLESS_START_HEIGHT = 768
+
+# Default user agent
+DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+
+# #####>>>>>----- FILE SETTINGS -----<<<<<#####
+
+# Archive settings
+ARCHIVE_EXISTING_LOGS = False
+ARCHIVE_EXISTING_DOWNLOADS = False
+SCREENSHOT_WITH_BACKGROUND = False
+
+# Default screenshot name
+SCREENSHOT_NAME = "screenshot.png"
+
+# #####>>>>>----- CDP SETTINGS -----<<<<<#####
+
+# Default CDP port
+CDP_PORT = 9222
+
+# CDP connection timeout
+CDP_TIMEOUT = 30
+
+# CDP reconnection delay
+CDP_RECONNECT_DELAY = 0.1
+
+# #####>>>>>----- AUTOMATION SETTINGS -----<<<<<#####
+
+# Switch to new tabs automatically
+SWITCH_TO_NEW_TABS_ON_CLICK = True
+
+# Wait for page ready state
+WAIT_FOR_RSC_ON_PAGE_LOADS = True
+WAIT_FOR_RSC_ON_CLICKS = False
+
+# Skip JavaScript waits
+SKIP_JS_WAITS = False
+
+# #####>>>>>----- SECURITY SETTINGS -----<<<<<#####
+
+# Disable Content Security Policy
+DISABLE_CSP_ON_CHROME = False
+
+# Ignore certificate errors
+IGNORE_CERTIFICATE_ERRORS = True
+
+# If True, an Exception is raised immediately for invalid proxy string syntax.
+# If False, a Warning will appear after the test, with no proxy server used.
+# (This applies when using --proxy=[PROXY_STRING] for using a proxy server.)
+RAISE_INVALID_PROXY_STRING_EXCEPTION = True
+
+
+# proxy_list.py
+PROXY_LIST = {
+    "example1": "98.8.195.160:443",  # (Example) - set your own proxy here
+    "example2": "200.174.198.86:8888",  # (Example)
+    "example3": "socks5://184.178.172.5:15303",  # (Example)
+    "proxy1": None,
+    "proxy2": None,
+    "proxy3": None,
+    "proxy4": None,
+    "proxy5": None,
+}
+
+# ad_block_list.py
 AD_BLOCK_LIST = [
     '[aria-label="Ads"]',
     '[src*="adservice."]',

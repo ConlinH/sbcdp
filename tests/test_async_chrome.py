@@ -158,17 +158,22 @@ class TestAsyncChrome:
     @pytest.mark.asyncio
     async def test_screenshot(self):
         """测试截图功能"""
+        import os
+
         test_html = "<html><body><h1>Async Screenshot Test</h1></body></html>"
+        screenshot_path = "test_async_screenshot.png"
 
         async with Chrome() as chrome:
             await chrome.get(f"data:text/html,{test_html}")
 
             # 测试保存截图
-            screenshot_path = "test_async_screenshot.png"
             result = await chrome.save_screenshot(screenshot_path)
 
             # 验证截图文件存在（这里只是测试方法调用，实际文件可能不存在）
             assert result is not None
+
+        if os.path.exists(screenshot_path):
+            os.remove(screenshot_path)
 
     @pytest.mark.asyncio
     async def test_concurrent_operations(self):

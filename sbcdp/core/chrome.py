@@ -4,15 +4,51 @@ SBCDP 同步Chrome类
 """
 
 import asyncio
+from typing import TypedDict, Unpack, Optional, List, Literal
 
 from ..driver import cdp_util
+from ..driver.browser import PathLike
+from ..driver.config import Config
 from .methods import SyncCDPMethods, AsyncCDPMethods
+
+
+class InitOption(TypedDict, total=False):
+    config: Optional[Config]
+    user_data_dir: Optional[PathLike]
+    headless: Optional[bool]
+    incognito: Optional[bool]
+    guest: Optional[bool]
+
+    browser_executable_path: Optional[PathLike]
+    binary_location: Optional[str]
+    chrome_type: Literal["google-chrome", "edge"]
+
+    browser_args: Optional[List[str]]
+    xvfb_metrics: Optional[List[str]]  # "Width,Height" for Linux
+    ad_block: Optional[bool]
+    sandbox: Optional[bool]
+    host: Optional[str]  # Chrome remote-debugging-host
+    port: Optional[int]  # Chrome remote-debugging-port
+    xvfb: Optional[int]  # Use a special virtual display on Linux
+    headed: Optional[bool]  # Override default Xvfb mode on Linux
+    expert: Optional[bool]  # Open up closed Shadow-root elements
+
+    user_agent: Optional[str]
+    agent: Optional[str]  # Set the user-agent string
+
+    proxy: Optional[str]  # "host:port" or "user:pass@host:port"
+    extension_dir: Optional[str]  # Chrome extension directory
+
+    locale: Optional[str]   # Set the Language Locale Code
+    timezone: Optional[str]     # Eg "America/New_York", "Asia/Kolkata"
+    geolocation: Optional[str]  # Eg (48.87645, 2.26340)
+    platform: Optional[str]
 
 
 class SyncChrome(SyncCDPMethods):
     """同步Chrome类 - 纯同步的CDP自动化接口"""
 
-    def __init__(self, url=None, **kwargs):
+    def __init__(self, *, url=None, **kwargs: Unpack[InitOption]) -> None:
         """初始化Chrome实例
 
         Args:
@@ -23,10 +59,12 @@ class SyncChrome(SyncCDPMethods):
             url = "about:blank"
 
         # 创建事件循环
-        self.loop = asyncio.new_event_loop()
+        self.loop = kwargs.pop('loop', None)
+        if self.loop is None:
+            self.loop = asyncio.new_event_loop()
 
         # 启动CDP驱动
-        self.driver = cdp_util.start_sync(**kwargs)
+        self.driver = cdp_util.start_sync(**kwargs, loop=self.loop)
 
         # 获取页面
         self.page = self.loop.run_until_complete(self.driver.get(url))
@@ -62,7 +100,7 @@ class SyncChrome(SyncCDPMethods):
 class AsyncChrome(AsyncCDPMethods):
     """异步Chrome类 - 纯异步的CDP自动化接口"""
 
-    def __init__(self, url=None, **kwargs):
+    def __init__(self, url=None, **kwargs: Unpack[InitOption]):
         """初始化异步Chrome实例"""
         self.driver = None
         self.page = None
@@ -79,7 +117,7 @@ class AsyncChrome(AsyncCDPMethods):
             self._url = "about:blank"
 
         # 启动CDP驱动
-        self.driver = await cdp_util.start(**self._kwargs)
+        self.driver = await cdp_util.start_async(**self._kwargs)
 
         # 获取页面
         self.page = await self.driver.get(self._url)

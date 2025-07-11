@@ -4,6 +4,7 @@ import pathlib
 import secrets
 import typing
 from contextlib import suppress
+from typing import Optional
 
 from loguru import logger
 import mycdp as cdp
@@ -24,8 +25,8 @@ if typing.TYPE_CHECKING:
 
 def create(
     node: cdp.dom.Node,
-    tab: Tab, tree:
-    typing.Optional[cdp.dom.Node] = None
+    tab: Tab,
+    tree: typing.Optional[cdp.dom.Node] = None
 ):
     """
     Factory for Elements.
@@ -503,7 +504,7 @@ class Element:
         except AttributeError:
             return
         if not center:
-            logger.warning("Could not calculate box model for %s"% self)
+            logger.warning("Could not calculate box model for %s" % self)
             return
         logger.debug("Clicking on location: %.2f, %.2f" % center)
         await asyncio.gather(
@@ -794,13 +795,23 @@ class Element:
 
     async def query_selector_all_async(self, selector: str):
         """Like JS querySelectorAll()"""
-        await self.update()
+        # await self.update()
         return await self.tab.query_selector_all(selector, _node=self)
 
     async def query_selector_async(self, selector: str):
         """Like JS querySelector()"""
-        await self.update()
+        # await self.update()
         return await self.tab.query_selector(selector, self)
+
+    async def shadow_root_query_selector_async(self, selector: str) -> Optional[Element]:
+        if self.shadow_roots:
+            # node = await self.tab.query_selector(selector, self.shadow_roots[0])
+            return await self.tab.query_selector(selector, self.shadow_roots[0])
+
+    async def shadow_root_query_selector_all_async(self, selector: str) -> Optional[Element]:
+        if self.shadow_roots:
+            # node = await self.tab.query_selector_all(selector, self.shadow_roots[0])
+            return await self.tab.query_selector_all(selector, self.shadow_roots[0])
 
     async def save_screenshot_async(
         self,
@@ -973,7 +984,7 @@ class Element:
         if getattr(self, "_is_highlighted", False):
             del self._is_highlighted
             await self.tab.send(cdp.overlay.hide_highlight())
-            await self.tab.send(cdp.dom.disable())
+            # await self.tab.send(cdp.dom.disable())
             await self.tab.send(cdp.overlay.disable())
             return
         await self.tab.send(cdp.dom.enable())

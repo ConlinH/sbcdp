@@ -21,9 +21,9 @@ class TestCloudflare:
         # url = "https://www.e-food.gr/"
         async with Chrome() as chrome:
             await chrome.get(url)
-            await chrome.sleep(5)
             with suppress(Exception):
-                await chrome.mouse_click('input[type=checkbox]', timeout=1)
+                await chrome.verify_cf("确认您是真人")
+            await chrome.sleep(4)
             assert 'cf_clearance' in {c.name: c.value for c in await chrome.get_all_cookies()}
 
 

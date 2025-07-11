@@ -5,6 +5,7 @@ import inspect
 import itertools
 import json
 import sys
+import os
 import types
 from asyncio import iscoroutine, iscoroutinefunction
 from typing import (
@@ -36,6 +37,7 @@ GLOBAL_DELAY = 0.005
 MAX_SIZE: int = 2**28
 PING_TIMEOUT: int = 1800  # 30 minutes
 TargetType = Union[cdp.target.TargetInfo, cdp.target.TargetID]
+LOGGER_MESSAGE = os.getenv("LOGGER_MESSAGE")
 
 
 class ProtocolException(Exception):
@@ -69,12 +71,12 @@ class SettingClassVarNotAllowedException(PermissionError):
 
 
 class Transaction(asyncio.Future):
-    __cdp_obj__: Generator = None
+    __cdp_obj__: Generator[dict[str, Any], dict[str, Any], Any] = None
     method: str = None
     params: dict = None
     id: int = None
 
-    def __init__(self, cdp_obj: Generator):
+    def __init__(self, cdp_obj: Generator[dict[str, Any], dict[str, Any], Any]):
         """
         :param cdp_obj:
         """
@@ -200,7 +202,7 @@ class Connection(metaclass=CantTouchThis):
         self.recv_task = None
         self.enabled_domains = []
         self._last_result = []
-        self.listener: Listener = None
+        self.listener: Optional[Listener] = None
         self.__dict__.update(**kwargs)
 
     @property
@@ -279,9 +281,7 @@ class Connection(metaclass=CantTouchThis):
                 raise
         if not self.listener or not self.listener.running:
             self.listener = Listener(self)
-            logger.debug(
-                "\n✅ Opened websocket connection to %s" % self.websocket_url
-            )
+            logger.debug("\n✅ Opened websocket connection to %s" % self.websocket_url)
         # When a websocket connection is closed (either by error or on purpose)
         # and reconnected, the registered event listeners (if any), should be
         # registered again, so the browser sends those events.
@@ -295,16 +295,11 @@ class Connection(metaclass=CantTouchThis):
             try:
                 await self.websocket.close()
             except Exception:
-                logger.debug(
-                    "\n❌ Error closing websocket connection to %s" %
-                    self.websocket_url
-                )
+                logger.debug("\n❌ Error closing websocket connection to %s" % self.websocket_url)
             if self.listener and self.listener.running:
                 await self.listener.cancel()
                 self.enabled_domains.clear()
-            logger.debug(
-                "\n❌ Closed websocket connection to %s" % self.websocket_url
-            )
+            logger.debug("\n❌ Closed websocket connection to %s" % self.websocket_url)
 
     async def sleep(self, t: Union[int, float] = 0.25):
         await self.update_target()
@@ -372,9 +367,9 @@ class Connection(metaclass=CantTouchThis):
 
     async def set_geolocation(self, geolocation: Optional[tuple] = None):
         """Sets the User Agent via set_geolocation_override."""
-        await self.send(cdp.browser.grant_permissions(
-            permissions=["geolocation"],
-        ))
+        await self.send(
+            cdp.browser.grant_permissions(permissions=["geolocation"])
+        )
         await self.send(cdp.emulation.set_geolocation_override(
             latitude=geolocation[0],
             longitude=geolocation[1],
@@ -476,6 +471,7 @@ class Connection(metaclass=CantTouchThis):
             self.mapper.update({tx.id: tx})
             if not _is_update:
                 await self._register_handlers()
+            LOGGER_MESSAGE and logger.debug(f"Send msg: {tx.message}")
             await self.websocket.send(tx.message)
             try:
                 return await tx
@@ -516,11 +512,11 @@ class Connection(metaclass=CantTouchThis):
                     self.enabled_domains.append(domain_mod)
                     await self.send(domain_mod.enable(), _is_update=True)
                 except BaseException:  # Don't error before request is sent
-                    logger.debug("", True)
+                    logger.opt(exception=True).debug("")
                     try:
                         self.enabled_domains.remove(domain_mod)
                     except BaseException:
-                        logger.debug("NOT GOOD", True)
+                        logger.opt(exception=True).debug("NOT GOOD")
                         continue
                 finally:
                     continue
@@ -570,7 +566,7 @@ class Listener:
         self.connection = connection
         self.history = collections.deque()
         self.max_history = 1000
-        self.task: asyncio.Future = None
+        self.task: Optional[asyncio.Future] = None
         is_interactive = getattr(sys, "ps1", sys.flags.interactive)
         self._time_before_considered_idle = 0.10 if not is_interactive else 0.75  # noqa
         self.idle = asyncio.Event()
@@ -627,10 +623,11 @@ class Listener:
                 break
             self.idle.clear()  # Not "idle" anymore.
             message = json.loads(msg)
+            LOGGER_MESSAGE and logger.debug(f"Got answer: {message}")
             if "id" in message:
                 if message["id"] in self.connection.mapper:
                     tx = self.connection.mapper.pop(message["id"])
-                    logger.debug(f"Got answer for {tx} (message_id:{message["id"]})")
+                    # logger.debug(f"Got answer for {tx} (message_id:{message["id"]})")
                     tx(**message)
                 else:
                     if message["id"] == -2:
@@ -679,8 +676,8 @@ class Listener:
                                 except TypeError:
                                     callback(event)
                         except Exception as e:
-                            logger.warning(
-                                f"Exception in callback {callback} for event {event.__class__.__name__} => {e}", True
+                            logger.opt(exception=True).warning(
+                                f"Exception in callback {callback} for event {event.__class__.__name__} => {e}"
                             )
                             raise
                 except asyncio.CancelledError:

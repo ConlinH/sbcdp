@@ -9,7 +9,6 @@ from typing import Dict, List, Union, Optional, Tuple
 
 import mycdp as cdp
 
-from .. import config as sb_config
 from . import browser as cdp_browser
 from . import element
 from . import cdp_util as util
@@ -357,7 +356,7 @@ class Tab(Connection):
         if new_window and not new_tab:
             new_tab = True
         if new_tab:
-            if hasattr(sb_config, "incognito") and sb_config.incognito:
+            if hasattr(self.browser.config, "incognito") and self.browser.config.incognito:
                 return await self.browser.get(
                     url, new_tab=False, new_window=True, **kwargs
                 )
@@ -417,7 +416,7 @@ class Tab(Connection):
                     )
                     return await self.query_selector_all(selector, _node)
             else:
-                await self.send(cdp.dom.disable())
+                # await self.send(cdp.dom.disable())
                 raise
         if not node_ids:
             return []
@@ -468,7 +467,7 @@ class Tab(Connection):
                     )
                     return await self.query_selector(selector, _node)
             else:
-                await self.send(cdp.dom.disable())
+                # await self.send(cdp.dom.disable())
                 raise
         if not node_id:
             return
@@ -560,7 +559,7 @@ class Tab(Connection):
                         items.extend(
                             text_node.parent for text_node in iframe_text_elems
                         )
-        await self.send(cdp.dom.disable())
+        # await self.send(cdp.dom.disable())
         return items or []
 
     async def find_element_by_text(
@@ -656,7 +655,8 @@ class Tab(Connection):
                     if elem:
                         return elem
         finally:
-            await self.send(cdp.dom.disable())
+            # await self.send(cdp.dom.disable())
+            pass
 
     async def back(self):
         """History back"""
@@ -1285,20 +1285,6 @@ class Tab(Connection):
                             continue
                         res.append(abs_url)
         return res
-
-    async def verify_cf(self):
-        """(An attempt)"""
-        checkbox = None
-        checkbox_sibling = await self.wait_for(text="verify you are human")
-        if checkbox_sibling:
-            parent = checkbox_sibling.parent
-            while parent:
-                checkbox = await parent.query_selector("input[type=checkbox]")
-                if checkbox:
-                    break
-                parent = parent.parent
-        await checkbox.mouse_move()
-        await checkbox.mouse_click()
 
     async def get_document(self):
         return await self.send(cdp.dom.get_document())
