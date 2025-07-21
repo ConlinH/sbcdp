@@ -6,10 +6,10 @@ SBCDP 同步Chrome类
 import asyncio
 from typing import TypedDict, Unpack, Optional, List, Literal
 
-from ..driver import cdp_util
-from ..driver.browser import PathLike
-from ..driver.config import Config
-from .methods import SyncCDPMethods, AsyncCDPMethods
+from .driver import cdp_util
+from .driver.browser import PathLike
+from .driver.config import Config
+from .api import SyncCDP, AsyncCDP
 
 
 class InitOption(TypedDict, total=False):
@@ -45,7 +45,7 @@ class InitOption(TypedDict, total=False):
     platform: Optional[str]
 
 
-class SyncChrome(SyncCDPMethods):
+class SyncChrome(SyncCDP):
     """同步Chrome类 - 纯同步的CDP自动化接口"""
 
     def __init__(self, *, url=None, **kwargs: Unpack[InitOption]) -> None:
@@ -97,7 +97,7 @@ class SyncChrome(SyncCDPMethods):
             pass
 
 
-class AsyncChrome(AsyncCDPMethods):
+class AsyncChrome(AsyncCDP):
     """异步Chrome类 - 纯异步的CDP自动化接口"""
 
     def __init__(self, url=None, **kwargs: Unpack[InitOption]):

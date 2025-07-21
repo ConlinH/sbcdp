@@ -4,8 +4,10 @@ Contains only essential JavaScript execution methods.
 """
 
 import time
+from contextlib import suppress
 
 from .. import settings
+from .page_utils import is_xpath_selector
 
 
 # Define By constants locally for CDP-Base
@@ -82,6 +84,16 @@ def convert_to_css_selector(selector, by=By.CSS_SELECTOR):
         raise Exception(f"Could not convert {selector}(by={by}) to CSS_SELECTOR!")
 
 
+def to_css_if_xpath(selector):
+    """如果是XPath选择器，尝试转换为CSS选择器"""
+    if is_xpath_selector(selector):
+        with suppress(Exception):
+            css = convert_to_css_selector(selector, "xpath")
+            if css:
+                return css
+    return selector
+
+
 def is_valid_by(by):
     """Check if 'by' parameter is valid"""
     return by in [
@@ -94,7 +106,7 @@ def swap_selector_and_by_if_reversed(selector, by):
     """Swap selector and by if they appear to be reversed"""
     if not is_valid_by(by) and is_valid_by(selector):
         selector, by = by, selector
-    return (selector, by)
+    return selector, by
 
 
 def wait_for_ready_state_complete(driver, timeout=None):

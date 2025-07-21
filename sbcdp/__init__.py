@@ -8,9 +8,10 @@ from contextlib import suppress
 from .__version__ import __version__
 from .fixtures import shared_utils
 from .driver import cdp_util
-from .core.chrome import AsyncChrome
-from .core.chrome import AsyncChrome as Chrome
-from .core.chrome import SyncChrome
+from .api.network import NetData
+from .chrome import AsyncChrome
+from .chrome import AsyncChrome as Chrome
+from .chrome import SyncChrome
 
 with suppress(Exception):
     import colorama
@@ -27,6 +28,7 @@ __all__ = [
     'Chrome',
     'SyncChrome',
     'cdp_util',
+    'NetData',
     '__version__',
     'version',
 ]

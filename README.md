@@ -107,6 +107,37 @@ if __name__ == "__main__":
     # asyncio.run(main())
 ```
 
+### 拦截网络请求 | Intercept network requests
+
+```python
+import asyncio
+from contextlib import suppress
+
+from sbcdp import AsyncChrome
+from sbcdp import NetData
+
+
+async def main():
+    async def cb1(data: NetData):
+        print("monitor: ", data)
+
+    async def cb2(data: NetData):
+        print("intercept: ", data)
+        # 拦截所有的图片请求
+        if data.resource_type == 'Image':
+            return True
+
+    async with AsyncChrome() as sb:
+        await sb.request_monitor(monitor_cb=cb1, intercept_cb=cb2, delay_response_body=True)
+        await sb.open("https://www.baidu.com")
+        await sb.sleep(3)
+
+
+if __name__ == "__main__":
+    asyncio.new_event_loop().run_until_complete(main())
+    # asyncio.run(main())
+```
+
 ## 核心方法 | Core Methods
 
 ### 基础操作 | Basic Operations

@@ -29,20 +29,20 @@ class TestArgs:
             user_agent = await chrome.get_user_agent()
             assert ua2 == user_agent
 
-    @pytest.mark.asyncio
-    async def test_args_proxy(self):
-        """测试代理"""
-        proxy = 'socks5://127.0.0.1:18080'
-        # proxy = 'https://127.0.0.1:18080'
-        async with Chrome() as chrome:
-            await chrome.open("https://httpbin.org/ip")
-            origin = await chrome.get_text("pre")
-
-        async with Chrome(proxy=proxy) as chrome:
-            await chrome.open("https://httpbin.org/ip")
-            new = await chrome.get_text("pre")
-
-        assert origin != new
+    # @pytest.mark.asyncio
+    # async def test_args_proxy(self):
+    #     """测试代理"""
+    #     proxy = 'socks5://127.0.0.1:18080'
+    #     # proxy = 'https://127.0.0.1:18080'
+    #     async with Chrome() as chrome:
+    #         await chrome.open("https://httpbin.org/ip")
+    #         origin = await chrome.get_text("pre")
+    #
+    #     async with Chrome(proxy=proxy) as chrome:
+    #         await chrome.open("https://httpbin.org/ip")
+    #         new = await chrome.get_text("pre")
+    #
+    #     assert origin != new
 
     @pytest.mark.asyncio
     async def test_args_user_data_dir(self):

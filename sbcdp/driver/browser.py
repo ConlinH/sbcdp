@@ -440,7 +440,8 @@ class Browser:
             )  # noqa
         exe = self.config.browser_executable_path
         params = self.config()
-        logger.info(f'Starting\n\texecutable :{exe}\n\targuments:\n\t\t{"\n\t\t".join(params)}')
+        params_str = "\n\t\t".join(params)
+        logger.info(f'Starting\n\texecutable :{exe}\n\targuments:\n\t\t{params_str}')
         if not connect_existing:
             self._process: asyncio.subprocess.Process = (
                 await asyncio.create_subprocess_exec(

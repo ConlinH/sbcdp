@@ -314,7 +314,7 @@ class Connection(metaclass=CantTouchThis):
         Note: This is not an async method, just a regular method!
         :param cdp_obj:
         """
-        asyncio.ensure_future(self.send(cdp_obj))
+        return asyncio.ensure_future(self.send(cdp_obj))
 
     async def wait(self, t: Union[int, float] = None):
         """
@@ -624,67 +624,59 @@ class Listener:
             self.idle.clear()  # Not "idle" anymore.
             message = json.loads(msg)
             LOGGER_MESSAGE and logger.debug(f"Got answer: {message}")
-            if "id" in message:
-                if message["id"] in self.connection.mapper:
-                    tx = self.connection.mapper.pop(message["id"])
-                    # logger.debug(f"Got answer for {tx} (message_id:{message["id"]})")
-                    tx(**message)
-                else:
-                    if message["id"] == -2:
-                        tx = self.connection.mapper.get(-2)
-                        if tx:
-                            tx(**message)
-                        continue
+            asyncio.ensure_future(self._handler_message(message))
+
+    async def _handler_message(self, message: dict):
+        if "id" in message:
+            if message["id"] in self.connection.mapper:
+                tx = self.connection.mapper.pop(message["id"])
+                # logger.debug(f"Got answer for {tx} (message_id:{message["id"]})")
+                tx(**message)
             else:
-                # Probably an event
-                try:
-                    event = cdp.util.parse_json_event(message)
-                    event_tx = EventTransaction(event)
-                    if not self.connection.mapper:
-                        self.connection.__count__ = itertools.count(0)
-                    event_tx.id = next(self.connection.__count__)
-                    self.connection.mapper[event_tx.id] = event_tx
-                except Exception as e:
-                    logger.info(
-                        "%s: %s during parsing of json from event : %s"
-                        % (type(e).__name__, e.args, message),
-                    )
-                    continue
-                except KeyError as e:
-                    logger.error(f"KeyError: {e}")
-                    continue
-                try:
-                    if type(event) in self.connection.handlers:
-                        callbacks = self.connection.handlers[type(event)]
-                    else:
-                        continue
-                    if not len(callbacks):
-                        continue
-                    for callback in callbacks:
-                        try:
-                            if (
-                                iscoroutinefunction(callback)
-                                or iscoroutine(callback)
-                            ):
-                                try:
-                                    await callback(event, self.connection)
-                                except TypeError:
-                                    await callback(event)
-                            else:
-                                try:
-                                    callback(event, self.connection)
-                                except TypeError:
-                                    callback(event)
-                        except Exception as e:
-                            logger.opt(exception=True).warning(
-                                f"Exception in callback {callback} for event {event.__class__.__name__} => {e}"
-                            )
-                            raise
-                except asyncio.CancelledError:
-                    break
-                except Exception:
-                    raise
-                continue
+                if message["id"] == -2:
+                    tx = self.connection.mapper.get(-2)
+                    if tx:
+                        tx(**message)
+        else:
+            # Probably an event
+            try:
+                event = cdp.util.parse_json_event(message)
+                event_tx = EventTransaction(event)
+                if not self.connection.mapper:
+                    self.connection.__count__ = itertools.count(0)
+                event_tx.id = next(self.connection.__count__)
+                self.connection.mapper[event_tx.id] = event_tx
+            except Exception as e:
+                logger.info("%s: %s during parsing of json from event : %s" % (type(e).__name__, e.args, message), )
+                return
+            except KeyError as e:
+                logger.error(f"KeyError: {e}")
+                return
+            try:
+                if type(event) in self.connection.handlers:
+                    callbacks = self.connection.handlers[type(event)]
+                else:
+                    return
+                if not len(callbacks):
+                    return
+                for callback in callbacks:
+                    try:
+                        if iscoroutinefunction(callback) or iscoroutine(callback):
+                            try:
+                                await callback(event, self.connection)
+                            except TypeError:
+                                await callback(event)
+                        else:
+                            fn = callback(event, self.connection)
+                            if iscoroutinefunction(fn) or iscoroutine(fn):
+                                await fn
+                    except Exception as e:
+                        logger.opt(exception=True).warning(f"Exception in callback {callback} for event {event.__class__.__name__} => {e}")
+                        raise
+            except asyncio.CancelledError:
+                return
+            except Exception:
+                raise
 
     def __repr__(self):
         s_idle = "[idle]" if self.idle.is_set() else "[busy]"

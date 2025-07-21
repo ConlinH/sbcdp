@@ -178,6 +178,7 @@ class TestAsyncChrome:
     @pytest.mark.asyncio
     async def test_concurrent_operations(self):
         """测试并发操作"""
+
         async def get_page_info(page_num):
             async with Chrome() as chrome:
                 test_html = f"<html><head><title>Page {page_num}</title></head><body><h1>Content {page_num}</h1></body></html>"
