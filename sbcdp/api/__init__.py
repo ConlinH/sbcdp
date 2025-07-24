@@ -307,9 +307,10 @@ class AsyncCDP:
         self.ele_gui_click = self.__gui.ele_gui_click
 
     def __reg_net(self):
-        self.request_monitor = self.__net.request_monitor
-        self.net_work_handler_request_event = self.__net.net_work_handler_request_event
-        pass
+        self.http_monitor = self.__net.http_monitor
+        self.ws_monitor = self.__net.ws_monitor
+        self.network_http_event_handler = self.__net.network_http_event_handler
+        self.network_ws_event_handler = self.__net.network_ws_event_handler
 
     def add_element_methods(self, element):
         self.__navigation.extend_element(element)

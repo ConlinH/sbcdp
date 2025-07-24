@@ -128,12 +128,43 @@ async def main():
             return True
 
     async with AsyncChrome() as sb:
-        await sb.request_monitor(monitor_cb=cb1, intercept_cb=cb2, delay_response_body=True)
+        await sb.http_monitor(monitor_cb=cb1, intercept_cb=cb2, delay_response_body=True)
         await sb.open("https://www.baidu.com")
         await sb.sleep(3)
 
 
 if __name__ == "__main__":
+    asyncio.new_event_loop().run_until_complete(main())
+    # asyncio.run(main())
+```
+
+### 监听Websocket | Intercept Websocket
+
+```python
+import asyncio
+from sbcdp import AsyncChrome, NetWebsocket
+
+
+async def ws_cb(msg: str, type_: str, ws: NetWebsocket):
+    print(f"{type_}: {msg} ws: {ws}")
+
+
+async def main():
+    async with AsyncChrome() as sb:
+        await sb.ws_monitor(ws_cb)
+        url = "https://toolin.cn/ws"
+        await sb.open(url)
+        ele = await sb.find_element_by_text('连接Websocket')
+        await ele.click()
+        await sb.sleep(.5)
+        await sb.send_keys("input[placeholder='输入消息']", 'test msg')
+        await sb.sleep(.1)
+        ele = await sb.find_element_by_text('发 送')
+        await ele.click()
+        await sb.sleep(1)
+
+
+if __name__ == '__main__':
     asyncio.new_event_loop().run_until_complete(main())
     # asyncio.run(main())
 ```

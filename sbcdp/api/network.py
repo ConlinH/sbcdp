@@ -4,16 +4,26 @@ SBCDP 等待方法模块
 """
 import asyncio
 from asyncio import iscoroutinefunction
-from typing import List, Optional, Literal, Tuple, Any
+from typing import List, Optional, Literal, Tuple, Any, Callable
 from base64 import b64decode
+import inspect
 
+from loguru import logger
 from mycdp import network, fetch
 
 from .base import Base
 from ..driver.tab import Tab
 
 
-class NetData:
+async def _call_cb(cb, *args, **kwargs):
+    if iscoroutinefunction(cb):
+        return await cb(*args, **kwargs)
+    else:
+        if cb:
+            return cb(*args, **kwargs)
+
+
+class NetHttp:
     def __init__(
             self,
             request_id,
@@ -36,7 +46,7 @@ class NetData:
         self._response_extra_info: Optional[network.ResponseReceivedExtraInfo] = None
 
     def __repr__(self):
-        return f'<NetData {self._request_id} {self.method} {self.url}>'
+        return f'<NetHttp {self._request_id} {self.method} {self.url}>'
 
     @property
     def url(self):
@@ -142,17 +152,17 @@ class NetData:
                 return True
             if not self.__delay_response_body:
                 await self.get_response_body()
-            await self.__call_cb(self.__monitor_cb)
+            await _call_cb(self.__monitor_cb, self)
             return True
         elif isinstance(e, network.LoadingFailed):
             if self.__event_status == 'stop':
                 return True
             self.__event_status = 'failed'
-            await self.__call_cb(self.__monitor_cb)
+            await _call_cb(self.__monitor_cb, self)
             return True
         elif isinstance(e, fetch.RequestPaused):
             self._fetch_request = e
-            block_request = await self.__call_cb(self.__intercept_cb)
+            block_request = await _call_cb(self.__intercept_cb, self)
             if block_request:
                 self.__event_status = 'stop'
                 await self.tab.send(fetch.fail_request(e.request_id, network.ErrorReason.TIMED_OUT))
@@ -160,12 +170,63 @@ class NetData:
                 await self.tab.send(fetch.continue_request(e.request_id))
         return False
 
-    async def __call_cb(self, cb):
-        if iscoroutinefunction(cb):
-            return await cb(self)
-        else:
-            if cb:
-                return cb(self)
+
+class NetWebsocket:
+    def __init__(
+            self,
+            request_id,
+            tab: Tab,
+            monitor_cb: Optional[callable],
+    ):
+        self.tab = tab
+        self.__monitor_cb = monitor_cb
+        self.__status: Optional[Literal['created', 'closed']] = None
+        self._request_id: Optional[network.RequestId] = request_id
+
+        self._url: Optional[str] = None
+        self._request: Optional[network.WebSocketRequest] = None
+        self._response: Optional[network.WebSocketResponse] = None
+
+    def __repr__(self):
+        return f'<NetWebsocket {self._request_id} {self.url}>'
+
+    @property
+    def url(self):
+        return self._url
+
+    @property
+    def handshake_request(self):
+        return self._request
+
+    @property
+    def handshake_response(self):
+        return self._response
+
+    async def handler_event(self, e: Any) -> bool:
+        if isinstance(e, network.WebSocketCreated):
+            # 在 WebSocket 创建时触发。
+            self.__status = 'created'
+            self._url = e.url
+        elif isinstance(e, network.WebSocketClosed):
+            # 当 WebSocket 关闭时触发。
+            self.__status = 'closed'
+            return True
+        elif isinstance(e, network.WebSocketFrameError):
+            # 当 WebSocket 消息发生错误时触发。
+            logger.warning(f"发送msg失败， msg: {e.error_message}, 时间：{e.timestamp}, ws: {self}")
+        elif isinstance(e, network.WebSocketFrameReceived):
+            # 收到 WebSocket 消息时触发
+            await _call_cb(self.__monitor_cb, e.response.payload_data, 'recv', self)
+        elif isinstance(e, network.WebSocketFrameSent):
+            # 发送 WebSocket 消息时触发。
+            await _call_cb(self.__monitor_cb, e.response.payload_data, 'send', self)
+        elif isinstance(e, network.WebSocketWillSendHandshakeRequest):
+            # 当 WebSocket 即将发起握手时触发。
+            self._request = e.request
+        elif isinstance(e, network.WebSocketHandshakeResponseReceived):
+            # 当 WebSocket 握手响应可用时触发。
+            self._response = e.response
+        return False
 
 
 class NetWork(Base):
@@ -173,30 +234,43 @@ class NetWork(Base):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.__requests: dict[Tuple[str, callable, callable, bool], NetData] = {}
-        self.lock = asyncio.Lock()
+        self.__http_cache: dict[Tuple[str, callable, callable, bool], NetHttp] = {}
+        self.__ws_cache: dict[Tuple[str, callable], NetWebsocket] = {}
 
     async def set_blocked_urls(
             self,
             urls: str | List[str]
     ):
-        """通用等待方法"""
+        """
+        阻止url加载。
+        Blocks URLs from loading.
+        """
         if isinstance(urls, str):
             urls = [urls]
         await self.cdp.page.send(network.enable())
         await self.cdp.page.send(network.set_blocked_ur_ls(urls))
 
-    async def request_monitor(
+    async def http_monitor(
             self,
-            monitor_cb: Optional[callable] = None,
-            intercept_cb: Optional[callable] = None,
+            monitor_cb: Optional[Callable[[NetHttp], None]] = None,
+            intercept_cb: Optional[Callable[[NetHttp], Optional[bool]]] = None,
             delay_response_body: bool = False,
     ):
         def lambda_cb(e, t):
-            return self.cdp.net_work_handler_request_event(e, t, monitor_cb, intercept_cb, delay_response_body)
-        if intercept_cb:
+            return self.cdp.network_http_event_handler(e, t, monitor_cb, intercept_cb, delay_response_body)
+
+        if intercept_cb and callable(intercept_cb):
+            params = inspect.signature(intercept_cb).parameters
+            if len(params) != 1:
+                raise ValueError(f"expected intercept_cb: def cb(data: NetHttp): pass")
+
             await self.cdp.add_handler(fetch.RequestPaused, lambda_cb)
-        if monitor_cb:
+
+        if monitor_cb and callable(monitor_cb):
+            params = inspect.signature(monitor_cb).parameters
+            if len(params) != 1:
+                raise ValueError(f"expected monitor_cb: def cb(data: NetHttp): pass")
+
             await self.cdp.add_handler(network.RequestWillBeSent, lambda_cb)
             await self.cdp.add_handler(network.RequestWillBeSentExtraInfo, lambda_cb)
             await self.cdp.add_handler(network.ResponseReceived, lambda_cb)
@@ -204,7 +278,29 @@ class NetWork(Base):
             await self.cdp.add_handler(network.LoadingFinished, lambda_cb)
             await self.cdp.add_handler(network.LoadingFailed, lambda_cb)
 
-    async def net_work_handler_request_event(
+    async def ws_monitor(
+            self,
+            monitor_cb: Callable[[str, str, NetWebsocket], None]
+    ):
+        if not callable(monitor_cb):
+            raise TypeError("monitor_cb must be a callable function")
+
+        params = inspect.signature(monitor_cb).parameters
+        if len(params) != 3:
+            raise ValueError(f"expected monitor_cb: def cb(msg, msg_type, ws): pass")
+
+        def lambda_cb(e, t):
+            return self.cdp.network_ws_event_handler(e, t, monitor_cb)
+
+        await self.cdp.add_handler(network.WebSocketCreated, lambda_cb)
+        await self.cdp.add_handler(network.WebSocketClosed, lambda_cb)
+        await self.cdp.add_handler(network.WebSocketFrameError, lambda_cb)
+        await self.cdp.add_handler(network.WebSocketFrameReceived, lambda_cb)
+        await self.cdp.add_handler(network.WebSocketFrameSent, lambda_cb)
+        await self.cdp.add_handler(network.WebSocketHandshakeResponseReceived, lambda_cb)
+        await self.cdp.add_handler(network.WebSocketWillSendHandshakeRequest, lambda_cb)
+
+    async def network_http_event_handler(
             self,
             event: Any,
             tab: Tab,
@@ -222,10 +318,30 @@ class NetWork(Base):
         if isinstance(event, network.RequestWillBeSent) and not event.loader_id:
             return
 
-        net_data = self.__requests.get((request_id, monitor_cb, intercept_cb, delay_response_body))
+        net_data = self.__http_cache.get((request_id, monitor_cb, intercept_cb, delay_response_body))
         if net_data is None:
-            net_data = NetData(request_id, tab, monitor_cb, intercept_cb, delay_response_body)
-            self.__requests[(request_id, monitor_cb, intercept_cb, delay_response_body)] = net_data
+            net_data = NetHttp(request_id, tab, monitor_cb, intercept_cb, delay_response_body)
+            self.__http_cache[(request_id, monitor_cb, intercept_cb, delay_response_body)] = net_data
 
         if await net_data.handler_event(event):
-            self.__requests.pop((request_id, monitor_cb, intercept_cb, delay_response_body), None)
+            self.__http_cache.pop((request_id, monitor_cb, intercept_cb, delay_response_body), None)
+
+    async def network_ws_event_handler(
+            self,
+            event: Any,
+            tab: Tab,
+            monitor_cb: Optional[callable],
+    ):
+        request_id = event.request_id
+        if isinstance(event, fetch.RequestPaused):
+            request_id = event.network_id
+        if request_id is None:
+            return
+
+        net_ws = self.__ws_cache.get((request_id, monitor_cb))
+        if net_ws is None:
+            net_ws = NetWebsocket(request_id, tab, monitor_cb)
+            self.__ws_cache[(request_id, monitor_cb)] = net_ws
+
+        if await net_ws.handler_event(event):
+            self.__ws_cache.pop((request_id, monitor_cb), None)
