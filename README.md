@@ -113,15 +113,14 @@ if __name__ == "__main__":
 import asyncio
 from contextlib import suppress
 
-from sbcdp import AsyncChrome
-from sbcdp import NetData
+from sbcdp import AsyncChrome, NetHttp
 
 
 async def main():
-    async def cb1(data: NetData):
+    async def cb1(data: NetHttp):
         print("monitor: ", data)
 
-    async def cb2(data: NetData):
+    async def cb2(data: NetHttp):
         print("intercept: ", data)
         # 拦截所有的图片请求
         if data.resource_type == 'Image':
