@@ -22,8 +22,8 @@ def event_loop():
 @pytest.fixture
 def sync_chrome():
     """同步Chrome fixture"""
-    from sbcdp.api_sync import Chrome
-    chrome = Chrome()
+    from sbcdp import SyncChrome
+    chrome = SyncChrome()
     yield chrome
     chrome.close()
 
@@ -31,8 +31,8 @@ def sync_chrome():
 @pytest.fixture
 async def async_chrome():
     """异步Chrome fixture"""
-    from sbcdp.api_async import Chrome
-    chrome = Chrome()
+    from sbcdp import AsyncChrome
+    chrome = AsyncChrome()
     yield chrome
     await chrome.close()
 

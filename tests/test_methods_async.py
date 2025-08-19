@@ -39,7 +39,7 @@ class TestMethodsAsync:
                 return True
 
         async with AsyncChrome() as sb:
-            await sb.http_monitor(monitor_cb=cb, intercept_cb=cb2, delay_response_body=True)
+            sb.http_monitor(monitor_cb=cb, intercept_cb=cb2, delay_response_body=True)
 
             await sb.open("https://www.baidu.com")
             await sb.sleep(3)
@@ -59,7 +59,7 @@ class TestMethodsAsync:
             ws_msg = msg
 
         async with AsyncChrome() as sb:
-            await sb.ws_monitor(ws_cb)
+            sb.ws_monitor(ws_cb)
             url = "https://toolin.cn/ws"
             await sb.open(url)
             ele = await sb.find_element_by_text('连接Websocket')
@@ -73,6 +73,31 @@ class TestMethodsAsync:
 
         assert ws_msg == 'received：test msg'
 
+    @pytest.mark.asyncio
+    async def test_http_monitor_all_tabs(self):
+        """测试请求监听和拦截"""
+        from sbcdp import NetHttp
+
+        flag = True
+
+        async def cb(data: NetHttp):
+            if data.resource_type == 'Image' and not data.url.startswith('data:image'):
+                nonlocal flag
+                flag = False
+
+        async def cb2(data: NetHttp):
+            print("intercept: ", data)
+            # 拦截所有的图片加载
+            if data.resource_type == 'Image':
+                return True
+
+        async with AsyncChrome() as sb:
+            sb.http_monitor_all_tabs(monitor_cb=cb, intercept_cb=cb2, delay_response_body=True)
+
+            await sb.open("https://www.baidu.com")
+            await sb.sleep(3)
+
+        assert flag is True
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

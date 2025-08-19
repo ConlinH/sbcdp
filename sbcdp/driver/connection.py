@@ -16,6 +16,8 @@ from typing import (
     Callable,
     Any,
     TypeVar,
+    Tuple,
+    TYPE_CHECKING
 )
 
 from loguru import logger
@@ -30,6 +32,9 @@ import mycdp.target
 import mycdp.util
 
 from . import cdp_util as util
+
+if TYPE_CHECKING:
+    from ..api.network import NetHttp
 
 
 T = TypeVar("T")
@@ -203,6 +208,7 @@ class Connection(metaclass=CantTouchThis):
         self.enabled_domains = []
         self._last_result = []
         self.listener: Optional[Listener] = None
+        self.__http_cache: dict[Tuple[str, callable, callable, bool], "NetHttp"] = {}
         self.__dict__.update(**kwargs)
 
     @property
@@ -262,6 +268,64 @@ class Connection(metaclass=CantTouchThis):
             return
         self.handlers[event_type_or_domain].append(handler)
 
+    def http_monitor(
+            self,
+            monitor_cb: Optional[Callable[[NetHttp], None]] = None,
+            intercept_cb: Optional[Callable[[NetHttp], Optional[bool]]] = None,
+            delay_response_body: bool = False,
+    ):
+        def lambda_cb(e, t):
+            return self._network_http_event_handler(e, t, monitor_cb, intercept_cb, delay_response_body)
+
+        self.feed_cdp(cdp.network.enable())
+
+        if intercept_cb and callable(intercept_cb):
+            params = inspect.signature(intercept_cb).parameters
+            if len(params) != 1:
+                raise ValueError(f"expected intercept_cb: def cb(data: NetHttp): pass")
+
+            self.add_handler(cdp.fetch.RequestPaused, lambda_cb)
+
+        if monitor_cb and callable(monitor_cb):
+            params = inspect.signature(monitor_cb).parameters
+            if len(params) != 1:
+                raise ValueError(f"expected monitor_cb: def cb(data: NetHttp): pass")
+
+            self.add_handler(cdp.network.RequestWillBeSent, lambda_cb)
+            self.add_handler(cdp.network.RequestWillBeSentExtraInfo, lambda_cb)
+            self.add_handler(cdp.network.ResponseReceived, lambda_cb)
+            self.add_handler(cdp.network.ResponseReceivedExtraInfo, lambda_cb)
+            self.add_handler(cdp.network.LoadingFinished, lambda_cb)
+            self.add_handler(cdp.network.LoadingFailed, lambda_cb)
+
+    async def _network_http_event_handler(
+            self,
+            event: Any,
+            tab,
+            monitor_cb: Optional[callable],
+            intercept_cb: Optional[callable],
+            delay_response_body
+    ):
+        request_id = event.request_id
+        if isinstance(event, cdp.fetch.RequestPaused):
+            request_id = event.network_id
+        if request_id is None:
+            return
+
+        from ..api.network import NetHttp
+
+        # 根据worker loaderId为空的特征过滤Worker
+        if isinstance(event, cdp.network.RequestWillBeSent) and not event.loader_id:
+            return
+
+        net_data = self.__http_cache.get((request_id, monitor_cb, intercept_cb, delay_response_body))
+        if net_data is None:
+            net_data = NetHttp(request_id, tab, monitor_cb, intercept_cb, delay_response_body)
+            self.__http_cache[(request_id, monitor_cb, intercept_cb, delay_response_body)] = net_data
+
+        if await net_data.handler_event(event):
+            self.__http_cache.pop((request_id, monitor_cb, intercept_cb, delay_response_body), None)
+
     async def aopen(self, **kw):
         """
         Opens the websocket connection. Shouldn't be called manually by users.
@@ -279,6 +343,7 @@ class Connection(metaclass=CantTouchThis):
                 if self.listener:
                     await self.listener.cancel()
                 raise
+                # return
         if not self.listener or not self.listener.running:
             self.listener = Listener(self)
             logger.debug("\n✅ Opened websocket connection to %s" % self.websocket_url)

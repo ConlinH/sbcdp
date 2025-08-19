@@ -147,6 +147,7 @@ class Browser:
         self._keep_user_data_dir = None
         self._is_updating = asyncio.Event()
         self.connection: Optional[Connection] = None
+        self._http_monitor_params = None
         logger.debug("Session object initialized: %s" % vars(self))
 
     @property
@@ -188,6 +189,14 @@ class Browser:
 
     sleep = wait
     """Alias for wait"""
+
+    def http_monitor_all_tabs(
+        self,
+        *args,
+        **kwargs,
+    ):
+        self._http_monitor_params = (args, kwargs)
+
     async def _handle_target_update(
         self,
         event: Union[
@@ -235,6 +244,11 @@ class Browser:
                     "Target #%d created => %s"
                     % (len(self.targets), new_target)
                 )
+
+                if new_target.type_ == 'page' and self._http_monitor_params is not None:
+                    setattr(new_target, "_had_http_monitor", True)
+                    new_target.http_monitor(*self._http_monitor_params[0], **self._http_monitor_params[1])
+
         elif isinstance(event, cdp.target.TargetDestroyed):
             current_tab = next(
                 filter(

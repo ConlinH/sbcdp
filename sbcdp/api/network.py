@@ -54,7 +54,7 @@ class NetHttp:
             return self._net_request.request.url
         elif self._fetch_request:
             return self._fetch_request.request.url
-        raise Exception("get url failed")
+        # raise Exception("get url failed")
 
     @property
     def method(self):
@@ -62,7 +62,7 @@ class NetHttp:
             return self._net_request.request.method
         elif self._fetch_request:
             return self._fetch_request.request.method
-        raise Exception("get method failed")
+        # raise Exception("get method failed")
 
     @property
     def resource_type(self):
@@ -250,35 +250,28 @@ class NetWork(Base):
         await self.cdp.page.send(network.enable())
         await self.cdp.page.send(network.set_blocked_ur_ls(urls))
 
-    async def http_monitor(
+    def http_monitor(
             self,
             monitor_cb: Optional[Callable[[NetHttp], None]] = None,
             intercept_cb: Optional[Callable[[NetHttp], Optional[bool]]] = None,
             delay_response_body: bool = False,
     ):
-        def lambda_cb(e, t):
-            return self.cdp.network_http_event_handler(e, t, monitor_cb, intercept_cb, delay_response_body)
+        self.cdp.page.http_monitor(
+            monitor_cb=monitor_cb,
+            intercept_cb=intercept_cb,
+            delay_response_body=delay_response_body
+        )
 
-        if intercept_cb and callable(intercept_cb):
-            params = inspect.signature(intercept_cb).parameters
-            if len(params) != 1:
-                raise ValueError(f"expected intercept_cb: def cb(data: NetHttp): pass")
+    def http_monitor_all_tabs(
+        self,
+        monitor_cb: Optional[Callable[[NetHttp], None]] = None,
+        intercept_cb: Optional[Callable[[NetHttp], Optional[bool]]] = None,
+        delay_response_body: bool = False,
+    ):
+        self.cdp.page.http_monitor(monitor_cb, intercept_cb, delay_response_body)
+        self.cdp.driver.http_monitor_all_tabs(monitor_cb, intercept_cb, delay_response_body)
 
-            await self.cdp.add_handler(fetch.RequestPaused, lambda_cb)
-
-        if monitor_cb and callable(monitor_cb):
-            params = inspect.signature(monitor_cb).parameters
-            if len(params) != 1:
-                raise ValueError(f"expected monitor_cb: def cb(data: NetHttp): pass")
-
-            await self.cdp.add_handler(network.RequestWillBeSent, lambda_cb)
-            await self.cdp.add_handler(network.RequestWillBeSentExtraInfo, lambda_cb)
-            await self.cdp.add_handler(network.ResponseReceived, lambda_cb)
-            await self.cdp.add_handler(network.ResponseReceivedExtraInfo, lambda_cb)
-            await self.cdp.add_handler(network.LoadingFinished, lambda_cb)
-            await self.cdp.add_handler(network.LoadingFailed, lambda_cb)
-
-    async def ws_monitor(
+    def ws_monitor(
             self,
             monitor_cb: Callable[[str, str, NetWebsocket], None]
     ):
@@ -292,39 +285,14 @@ class NetWork(Base):
         def lambda_cb(e, t):
             return self.cdp.network_ws_event_handler(e, t, monitor_cb)
 
-        await self.cdp.add_handler(network.WebSocketCreated, lambda_cb)
-        await self.cdp.add_handler(network.WebSocketClosed, lambda_cb)
-        await self.cdp.add_handler(network.WebSocketFrameError, lambda_cb)
-        await self.cdp.add_handler(network.WebSocketFrameReceived, lambda_cb)
-        await self.cdp.add_handler(network.WebSocketFrameSent, lambda_cb)
-        await self.cdp.add_handler(network.WebSocketHandshakeResponseReceived, lambda_cb)
-        await self.cdp.add_handler(network.WebSocketWillSendHandshakeRequest, lambda_cb)
+        self.cdp.add_handler(network.WebSocketCreated, lambda_cb)
+        self.cdp.add_handler(network.WebSocketClosed, lambda_cb)
+        self.cdp.add_handler(network.WebSocketFrameError, lambda_cb)
+        self.cdp.add_handler(network.WebSocketFrameReceived, lambda_cb)
+        self.cdp.add_handler(network.WebSocketFrameSent, lambda_cb)
+        self.cdp.add_handler(network.WebSocketHandshakeResponseReceived, lambda_cb)
+        self.cdp.add_handler(network.WebSocketWillSendHandshakeRequest, lambda_cb)
 
-    async def network_http_event_handler(
-            self,
-            event: Any,
-            tab: Tab,
-            monitor_cb: Optional[callable],
-            intercept_cb: Optional[callable],
-            delay_response_body
-    ):
-        request_id = event.request_id
-        if isinstance(event, fetch.RequestPaused):
-            request_id = event.network_id
-        if request_id is None:
-            return
-
-        # 根据worker loaderId为空的特征过滤Worker
-        if isinstance(event, network.RequestWillBeSent) and not event.loader_id:
-            return
-
-        net_data = self.__http_cache.get((request_id, monitor_cb, intercept_cb, delay_response_body))
-        if net_data is None:
-            net_data = NetHttp(request_id, tab, monitor_cb, intercept_cb, delay_response_body)
-            self.__http_cache[(request_id, monitor_cb, intercept_cb, delay_response_body)] = net_data
-
-        if await net_data.handler_event(event):
-            self.__http_cache.pop((request_id, monitor_cb, intercept_cb, delay_response_body), None)
 
     async def network_ws_event_handler(
             self,

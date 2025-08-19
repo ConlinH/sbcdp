@@ -45,6 +45,10 @@ class PageInfo(Base):
         """获取Cookie字符串"""
         return await self.cdp.page.evaluate("document.cookie")
 
+    async def get_all_cookies(self, *args, **kwargs):
+        """获取Cookies"""
+        return await self.cdp.driver.cookies.get_all(*args, **kwargs)
+
     async def get_locale_code(self):
         """获取语言代码"""
         return await self.cdp.page.evaluate("navigator.language || navigator.languages[0]")

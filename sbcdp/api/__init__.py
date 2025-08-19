@@ -4,6 +4,7 @@ SBCDP 异步方法实现 - 重构版
 """
 
 import asyncio
+from typing import Optional, Callable
 
 from ..driver.tab import Tab
 from ..driver.browser import Browser
@@ -15,7 +16,7 @@ from .action import Action
 from .wait import Wait
 from .page_info import PageInfo
 from .gui import GUI
-from .network import NetWork
+from .network import NetWork, NetHttp
 
 
 class AsyncCDP:
@@ -234,6 +235,8 @@ class AsyncCDP:
         self.get_user_agent = self.__page_info.get_user_agent
         # 获取Cookie字符串
         self.get_cookie_string = self.__page_info.get_cookie_string
+        # 获取Cookies
+        self.get_all_cookies = self.__page_info.get_all_cookies
         # 获取语言代码
         self.get_locale_code = self.__page_info.get_locale_code
         # 获取localStorage项
@@ -308,8 +311,8 @@ class AsyncCDP:
 
     def __reg_net(self):
         self.http_monitor = self.__net.http_monitor
+        self.http_monitor_all_tabs = self.__net.http_monitor_all_tabs
         self.ws_monitor = self.__net.ws_monitor
-        self.network_http_event_handler = self.__net.network_http_event_handler
         self.network_ws_event_handler = self.__net.network_ws_event_handler
 
     def add_element_methods(self, element):
@@ -333,7 +336,7 @@ class AsyncCDP:
         """添加轻微暂停"""
         await asyncio.sleep(0.007)
 
-    async def add_handler(self, event, handler):
+    def add_handler(self, event, handler):
         """添加事件处理器"""
         self.page.add_handler(event, handler)
 
@@ -350,6 +353,7 @@ class AsyncCDP:
                 parent = parent.parent
         await checkbox.mouse_move_async()
         await checkbox.mouse_click_async()
+
 
 
 class SyncCDP(AsyncCDP):
