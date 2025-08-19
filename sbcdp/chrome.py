@@ -4,12 +4,23 @@ SBCDP 同步Chrome类
 """
 
 import asyncio
-from typing import TypedDict, Unpack, Optional, List, Literal
+import sys
+from typing import TypedDict, Optional, List, Literal
 
 from .driver import cdp_util
 from .driver.browser import PathLike
 from .driver.config import Config
 from .api import SyncCDP, AsyncCDP
+
+if sys.version_info >= (3, 11):
+    from typing import Unpack
+else:
+    try:
+        from typing_extensions import Unpack
+    except ImportError:
+        from .fixtures.shared_utils import pip_install
+        pip_install("typing-extensions")
+        from typing_extensions import Unpack
 
 
 class InitOption(TypedDict, total=False):
