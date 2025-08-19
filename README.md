@@ -127,7 +127,7 @@ async def main():
             return True
 
     async with AsyncChrome() as sb:
-        await sb.http_monitor(monitor_cb=cb1, intercept_cb=cb2, delay_response_body=True)
+        sb.http_monitor(monitor_cb=cb1, intercept_cb=cb2, delay_response_body=True)
         await sb.open("https://www.baidu.com")
         await sb.sleep(3)
 
