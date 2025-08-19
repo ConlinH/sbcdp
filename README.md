@@ -150,7 +150,7 @@ async def ws_cb(msg: str, type_: str, ws: NetWebsocket):
 
 async def main():
     async with AsyncChrome() as sb:
-        await sb.ws_monitor(ws_cb)
+        sb.ws_monitor(ws_cb)
         url = "https://toolin.cn/ws"
         await sb.open(url)
         ele = await sb.find_element_by_text('连接Websocket')
