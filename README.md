@@ -119,6 +119,7 @@ from sbcdp import AsyncChrome, NetHttp
 async def main():
     async def cb1(data: NetHttp):
         print("monitor: ", data)
+        print("response body: ", await data.get_response_body())
 
     async def cb2(data: NetHttp):
         print("intercept: ", data)

@@ -28,6 +28,7 @@ class TestMethodsAsync:
         flag = True
 
         async def cb(data: NetHttp):
+            # print("response body: ", await data.get_response_body())
             if data.resource_type == 'Image' and not data.url.startswith('data:image'):
                 nonlocal flag
                 flag = False
@@ -75,7 +76,7 @@ class TestMethodsAsync:
 
     @pytest.mark.asyncio
     async def test_http_monitor_all_tabs(self):
-        """测试请求监听和拦截"""
+        """测试所有标签页的请求监听和拦截"""
         from sbcdp import NetHttp
 
         flag = True

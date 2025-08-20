@@ -111,7 +111,7 @@ class NetHttp:
         if not self._response.response:
             return
 
-        body = getattr(self._response.response, 'body', None)
+        body = getattr(self._response.response, '_body', None)
         if body is not None:
             return body
 
@@ -124,18 +124,20 @@ class NetHttp:
         if not self._response.response:
             return
 
-        body = getattr(self._response.response, 'body', None)
+        body = getattr(self._response.response, '_body', None)
         if body is not None:
             return body
 
         while self.__event_status == 'pending':
             await asyncio.sleep(0.1)
 
-        if self.__event_status == 'ok':
-            self._response.response._body, base64Encoded = await self.tab.send(network.get_response_body(self._request_id))
-            if base64Encoded:
-                self._response.response._body = b64decode(self._response.response._body)
-            return self._response.response._body
+        if self.__event_status != 'ok':
+            return None
+
+        self._response.response._body, base64Encoded = await self.tab.send(network.get_response_body(self._request_id))
+        if base64Encoded:
+            self._response.response._body = b64decode(self._response.response._body)
+        return self._response.response._body
 
     async def handler_event(self, e: Any) -> bool:
         if isinstance(e, network.RequestWillBeSent):

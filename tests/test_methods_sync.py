@@ -26,6 +26,7 @@ class TestMethodsAsync:
         flag = True
 
         def cb(data: NetHttp):
+            # print("response body: ", data.response_body)
             if data.resource_type == 'Image' and not data.url.startswith('data:image'):
                 nonlocal flag
                 flag = False
@@ -37,8 +38,7 @@ class TestMethodsAsync:
                 return True
 
         with SyncChrome() as sb:
-            sb.http_monitor(monitor_cb=cb, intercept_cb=cb2, delay_response_body=True)
-
+            sb.http_monitor(monitor_cb=cb, intercept_cb=cb2, delay_response_body=False)
             sb.open("https://www.baidu.com")
             sb.sleep(3)
 
@@ -71,7 +71,7 @@ class TestMethodsAsync:
         assert ws_msg == 'received：test msg'
 
     def test_http_monitor_all_tabs(self):
-        """测试请求监听和拦截"""
+        """测试所有标签页的请求监听和拦截"""
         from sbcdp import NetHttp
 
         flag = True
