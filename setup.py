@@ -10,10 +10,11 @@ import os
 # 读取版本信息
 def get_version():
     version_file = os.path.join(os.path.dirname(__file__), 'sbcdp', '__version__.py')
+    global_vars = {}
     with open(version_file, 'r', encoding='utf-8') as f:
-        exec(f.read())
-    return locals()['__version__']
+        exec(f.read(), global_vars)
 
+    return global_vars['__version__']
 
 # 读取README
 def get_long_description():

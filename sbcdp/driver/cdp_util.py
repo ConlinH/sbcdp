@@ -427,6 +427,7 @@ def start_sync(*args, chrome_type="google-chrome", **kwargs) -> Browser:
             binary_location = binary_location.strip()
             if not os.path.exists(binary_location):
                 binary_location = None
+    kwargs["binary_location"] = binary_location
     if (
         "user_data_dir" in kwargs
         and kwargs["user_data_dir"]
