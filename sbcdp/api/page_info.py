@@ -7,6 +7,9 @@ import os
 import re
 import asyncio
 from contextlib import suppress
+from typing import List, Dict
+
+from mycdp.network import CookieParam
 
 from .base import Base
 from .. import settings
@@ -48,6 +51,16 @@ class PageInfo(Base):
     async def get_all_cookies(self, *args, **kwargs):
         """获取Cookies"""
         return await self.cdp.driver.cookies.get_all(*args, **kwargs)
+
+    async def set_all_cookies(self, cookies: [List[Dict] | Dict]):
+        """获取Cookies"""
+        if isinstance(cookies, dict):
+            cookies = [cookies]
+
+        return await self.cdp.driver.cookies.set_all([CookieParam(**c) for c in cookies])
+
+    async def clear_cookies(self):
+        return await self.cdp.driver.cookies.clear()
 
     async def get_locale_code(self):
         """获取语言代码"""

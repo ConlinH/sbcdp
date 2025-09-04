@@ -237,6 +237,10 @@ class AsyncCDP:
         self.get_cookie_string = self.__page_info.get_cookie_string
         # 获取Cookies
         self.get_all_cookies = self.__page_info.get_all_cookies
+        # 设置Cookies
+        self.set_all_cookies = self.__page_info.set_all_cookies
+        # 清空Cookies
+        self.clear_cookies = self.__page_info.clear_cookies
         # 获取语言代码
         self.get_locale_code = self.__page_info.get_locale_code
         # 获取localStorage项

@@ -320,7 +320,7 @@ async def start(
 
     if (
         "binary_location" in kwargs
-        and not browser_executable_path
+        and not kwargs.get("browser_executable_path")
     ):
         browser_executable_path = kwargs["binary_location"]
 
@@ -378,7 +378,7 @@ async def start(
 
 async def start_async(*args, chrome_type="google-chrome", **kwargs) -> Browser:
     headless = False
-    if "browser_executable_path" in kwargs:
+    if kwargs.get("browser_executable_path"):
         binary_location = kwargs["browser_executable_path"]
         if binary_location and isinstance(binary_location, str):
             binary_location = binary_location.strip()
@@ -417,7 +417,7 @@ def start_sync(*args, chrome_type="google-chrome", **kwargs) -> Browser:
     else:
         loop = asyncio.new_event_loop()
     headless = False
-    if "browser_executable_path" in kwargs:
+    if kwargs.get("browser_executable_path"):
         binary_location = kwargs["browser_executable_path"]
         if binary_location and isinstance(binary_location, str):
             binary_location = binary_location.strip()
