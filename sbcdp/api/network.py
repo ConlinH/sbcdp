@@ -7,6 +7,8 @@ from asyncio import iscoroutinefunction
 from typing import List, Optional, Literal, Tuple, Any, Callable
 from base64 import b64decode
 import inspect
+import random
+import json
 
 from loguru import logger
 from mycdp import network, fetch
@@ -315,3 +317,38 @@ class NetWork(Base):
 
         if await net_ws.handler_event(event):
             self.__ws_cache.pop((request_id, monitor_cb), None)
+
+    async def fetch(
+        self,
+            url: str ,
+            method: str = "GET",
+            headers: Optional[dict] = None,
+            timeout: float = 180.0,
+            referer: Optional[str]= None,
+            body: Any = None,
+            **option,
+    ):
+        option["method"] = method
+        if headers is not None:
+            option["headers"] = headers
+        if referer is not None:
+            option["referer"] = referer
+        option["body"] = body
+
+        temp_key = f'k_{int(random.random() * 1000)}'
+
+        code = rf"""fetch("{url}", {json.dumps(option, ensure_ascii=False)}).then(res=>res.text()).then(data=>{{window.{temp_key}=data;}})"""
+        await self.cdp.evaluate(code)
+
+        loop = asyncio.get_running_loop()
+        now = loop.time()
+        try:
+            item = None
+            while not item:
+                item = await self.cdp.evaluate(f"window.{temp_key}")
+                if loop.time() - now > timeout:
+                    raise asyncio.TimeoutError("Fetch Timeout: {%s}" % url)
+                await asyncio.sleep(0.2)
+            return item
+        finally:
+            await self.cdp.evaluate(f"window.{temp_key} && delete window.{temp_key}")

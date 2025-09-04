@@ -107,6 +107,26 @@ if __name__ == "__main__":
     # asyncio.run(main())
 ```
 
+### 发送同源请求 | Send same-origin request
+
+```python
+import asyncio
+
+from sbcdp import AsyncChrome as Chrome
+
+
+async def main():
+    async with Chrome() as sb:
+        await sb.open('https://hanyu.baidu.com')
+        ret = await sb.fetch("https://hanyuapp.baidu.com/dictapp/word/detail_getworddetail?wd=黄")
+        print(ret)
+
+
+if __name__ == "__main__":
+    asyncio.new_event_loop().run_until_complete(main())
+    # asyncio.run(main())
+```
+
 ### 拦截网络请求 | Intercept network requests
 
 ```python

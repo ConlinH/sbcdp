@@ -95,5 +95,14 @@ class TestMethodsAsync:
 
         assert flag is True
 
+    def test_fetch(self):
+        """测试通过浏览器发送同源请求"""
+        with SyncChrome() as sb:
+            sb.open('https://hanyu.baidu.com')
+            ret = sb.fetch(
+                "https://hanyuapp.baidu.com/dictapp/word/detail_getworddetail?wd=黄"
+            )
+            assert len(ret) > 100
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

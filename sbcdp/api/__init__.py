@@ -318,6 +318,7 @@ class AsyncCDP:
         self.http_monitor_all_tabs = self.__net.http_monitor_all_tabs
         self.ws_monitor = self.__net.ws_monitor
         self.network_ws_event_handler = self.__net.network_ws_event_handler
+        self.fetch = self.__net.fetch
 
     def add_element_methods(self, element):
         self.__navigation.extend_element(element)
